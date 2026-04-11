@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 
 // Veritabanını seed'le
 db.seedSlots();
+db.seedCategories();
 
 // Middleware
 app.set('view engine', 'ejs');
@@ -82,9 +83,11 @@ app.post('/book', (req, res) => {
     return res.redirect('/t/' + token);
   }
 
-  const trimmedDesc = (description || '').trim();
+  const note = (description || '').trim();
+  const label = teacher.subject ? `Özel Ders - ${teacher.subject}` : 'Özel Ders';
+  const fullDesc = note ? `${label} (${note})` : label;
 
-  const success = db.bookSlot(day, start_time, teacher.name, trimmedDesc || teacher.name + ' dersi');
+  const success = db.bookSlot(day, start_time, teacher.name, fullDesc);
 
   if (success) {
     req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} saati başarıyla rezerve edildi.`;
@@ -134,11 +137,13 @@ app.get('/admin', requireAdmin, (req, res) => {
   const grid = db.getSlotsGrid();
   const stats = db.getStats();
   const teachers = db.getAllTeachers();
+  const categories = db.getAllCategories();
 
   res.render('admin', {
     grid,
     stats,
     teachers,
+    categories,
     DAYS: db.DAYS,
     DAYS_DISPLAY: db.DAYS_DISPLAY,
     HOURS: db.HOURS,
@@ -149,9 +154,10 @@ app.get('/admin', requireAdmin, (req, res) => {
 
 // Admin: slot blokla
 app.post('/admin/block', requireAdmin, (req, res) => {
-  const { day, start_time, description } = req.body;
+  const { day, start_time, description, custom_description } = req.body;
+  const finalDesc = (description === '__custom__' ? custom_description : description) || 'Meşgul';
 
-  const success = db.blockSlot(day, start_time, description || 'Meşgul');
+  const success = db.blockSlot(day, start_time, finalDesc);
 
   if (success) {
     req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} bloklandı.`;
@@ -179,15 +185,16 @@ app.post('/admin/free', requireAdmin, (req, res) => {
 
 // Admin: öğretmen ekle
 app.post('/admin/teacher/add', requireAdmin, (req, res) => {
-  const { name } = req.body;
+  const { name, subject } = req.body;
 
   if (!name || !name.trim()) {
     req.session.error = 'Öğretmen adı boş olamaz.';
     return res.redirect('/admin');
   }
 
-  const teacher = db.addTeacher(name.trim());
-  req.session.success = `"${teacher.name}" eklendi. Özel link: /t/${teacher.token}`;
+  const teacher = db.addTeacher(name.trim(), subject);
+  const subjectText = teacher.subject ? ` (${teacher.subject})` : '';
+  req.session.success = `"${teacher.name}${subjectText}" eklendi.`;
   res.redirect('/admin');
 });
 
@@ -199,6 +206,38 @@ app.post('/admin/teacher/delete', requireAdmin, (req, res) => {
     req.session.success = 'Öğretmen silindi.';
   } else {
     req.session.error = 'Öğretmen bulunamadı.';
+  }
+
+  res.redirect('/admin');
+});
+
+// Admin: kategori ekle
+app.post('/admin/category/add', requireAdmin, (req, res) => {
+  const { name } = req.body;
+
+  if (!name || !name.trim()) {
+    req.session.error = 'Kategori adı boş olamaz.';
+    return res.redirect('/admin');
+  }
+
+  try {
+    db.addCategory(name.trim());
+    req.session.success = `"${name.trim()}" kategorisi eklendi.`;
+  } catch (e) {
+    req.session.error = 'Bu kategori zaten mevcut.';
+  }
+
+  res.redirect('/admin');
+});
+
+// Admin: kategori sil
+app.post('/admin/category/delete', requireAdmin, (req, res) => {
+  const { id } = req.body;
+
+  if (db.deleteCategory(id)) {
+    req.session.success = 'Kategori silindi.';
+  } else {
+    req.session.error = 'Kategori bulunamadı.';
   }
 
   res.redirect('/admin');

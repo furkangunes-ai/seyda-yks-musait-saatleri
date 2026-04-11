@@ -13,8 +13,23 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS teachers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    subject TEXT NOT NULL DEFAULT '',
     token TEXT NOT NULL UNIQUE,
     created_at TEXT DEFAULT (datetime('now'))
+  )
+`);
+
+// subject sütunu yoksa ekle (mevcut veritabanları için)
+try {
+  db.exec(`ALTER TABLE teachers ADD COLUMN subject TEXT NOT NULL DEFAULT ''`);
+} catch (e) {
+  // sütun zaten var, sorun yok
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
   )
 `);
 
@@ -148,11 +163,11 @@ function generateToken() {
   return crypto.randomBytes(6).toString('hex');
 }
 
-function addTeacher(name) {
+function addTeacher(name, subject) {
   const token = generateToken();
-  const stmt = db.prepare('INSERT INTO teachers (name, token) VALUES (?, ?)');
-  stmt.run(name.trim(), token);
-  return { name: name.trim(), token };
+  const stmt = db.prepare('INSERT INTO teachers (name, subject, token) VALUES (?, ?, ?)');
+  stmt.run(name.trim(), (subject || '').trim(), token);
+  return { name: name.trim(), subject: (subject || '').trim(), token };
 }
 
 function getAllTeachers() {
@@ -169,8 +184,39 @@ function deleteTeacher(id) {
   return result.changes > 0;
 }
 
+// ==========================================
+// KATEGORİ YÖNETİMİ
+// ==========================================
+
+function seedCategories() {
+  const count = db.prepare('SELECT COUNT(*) as cnt FROM categories').get().cnt;
+  if (count > 0) return;
+
+  const defaults = ['Deneme Sınavı', 'Konu Tekrarı', 'Test Çözme'];
+  const insert = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
+  for (const name of defaults) {
+    insert.run(name);
+  }
+}
+
+function getAllCategories() {
+  return db.prepare('SELECT * FROM categories ORDER BY name').all();
+}
+
+function addCategory(name) {
+  const stmt = db.prepare('INSERT INTO categories (name) VALUES (?)');
+  stmt.run(name.trim());
+  return { name: name.trim() };
+}
+
+function deleteCategory(id) {
+  const stmt = db.prepare('DELETE FROM categories WHERE id = ?');
+  return stmt.run(id).changes > 0;
+}
+
 module.exports = {
   seedSlots,
+  seedCategories,
   getAllSlots,
   getSlotsGrid,
   getSlot,
@@ -182,6 +228,9 @@ module.exports = {
   getAllTeachers,
   getTeacherByToken,
   deleteTeacher,
+  getAllCategories,
+  addCategory,
+  deleteCategory,
   DAYS,
   DAYS_DISPLAY,
   HOURS

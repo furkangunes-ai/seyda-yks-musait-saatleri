@@ -49,7 +49,8 @@
 
     <!-- Yeni Öğretmen Ekle -->
     <form action="/admin/teacher/add" method="POST" class="add-teacher-form">
-      <input type="text" name="name" placeholder="Öğretmen adı (örn: Ahmet Hoca)" required class="teacher-input">
+      <input type="text" name="name" placeholder="Öğretmen adı (örn: Esra Hoca)" required class="teacher-input">
+      <input type="text" name="subject" placeholder="Branş (örn: Matematik)" class="teacher-input teacher-input-subject">
       <button type="submit" class="btn btn-primary">Ekle</button>
     </form>
 
@@ -59,6 +60,7 @@
         <thead>
           <tr>
             <th>Ad</th>
+            <th>Branş</th>
             <th>Özel Link</th>
             <th>Kopyala</th>
             <th>Sil</th>
@@ -68,6 +70,7 @@
           <% for (const t of teachers) { %>
             <tr>
               <td><strong><%= t.name %></strong></td>
+              <td><%= t.subject || '-' %></td>
               <td class="link-cell">
                 <code class="teacher-link" id="link-<%= t.id %>"><%= protocol %>://<%= host %>/t/<%= t.token %></code>
               </td>
@@ -89,11 +92,42 @@
     <% } %>
   </div>
 
+  <!-- ==========================================
+       KATEGORİ YÖNETİMİ
+       ========================================== -->
+  <div class="section-card">
+    <h2>Aktivite Kategorileri</h2>
+    <p class="section-desc">Kendi etkinliklerini tanımla. Programda saat bloklaerken bu kategorilerden seçebilirsin.</p>
+
+    <!-- Yeni Kategori Ekle -->
+    <form action="/admin/category/add" method="POST" class="add-teacher-form">
+      <input type="text" name="name" placeholder="Kategori adı (örn: Deneme Sınavı)" required class="teacher-input">
+      <button type="submit" class="btn btn-primary">Ekle</button>
+    </form>
+
+    <!-- Mevcut Kategoriler -->
+    <% if (categories.length > 0) { %>
+      <div class="categories-list">
+        <% for (const cat of categories) { %>
+          <div class="category-item">
+            <span class="category-name"><%= cat.name %></span>
+            <form action="/admin/category/delete" method="POST" class="inline-form">
+              <input type="hidden" name="id" value="<%= cat.id %>">
+              <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('\"<%= cat.name %>\" silinsin mi?')">Sil</button>
+            </form>
+          </div>
+        <% } %>
+      </div>
+    <% } else { %>
+      <p class="empty-msg">Henüz kategori eklenmedi.</p>
+    <% } %>
+  </div>
+
   <!-- Renk Açıklaması -->
   <div class="legend">
     <span class="legend-item"><span class="legend-color available"></span> Müsait</span>
     <span class="legend-item"><span class="legend-color booked"></span> Öğretmen Rezerve</span>
-    <span class="legend-item"><span class="legend-color blocked"></span> Bloklu (Deneme/Özel Ders)</span>
+    <span class="legend-item"><span class="legend-color blocked"></span> Bloklu (Kendi Etkinliğin)</span>
   </div>
 
   <!-- Haftalık Program Tablosu -->
@@ -122,7 +156,18 @@
                   <form action="/admin/block" method="POST" class="admin-form" onclick="event.stopPropagation()">
                     <input type="hidden" name="day" value="<%= day %>">
                     <input type="hidden" name="start_time" value="<%= hour %>">
-                    <input type="text" name="description" placeholder="Açıklama (örn: Deneme sınavı)" class="book-input">
+                    <% if (categories.length > 0) { %>
+                      <select name="description" class="book-select">
+                        <option value="">-- Kategori seç --</option>
+                        <% for (const cat of categories) { %>
+                          <option value="<%= cat.name %>"><%= cat.name %></option>
+                        <% } %>
+                        <option value="__custom__">Özel yazayım...</option>
+                      </select>
+                      <input type="text" name="custom_description" placeholder="Özel açıklama" class="book-input custom-desc-input" style="display:none">
+                    <% } else { %>
+                      <input type="text" name="description" placeholder="Açıklama" class="book-input">
+                    <% } %>
                     <button type="submit" class="btn btn-small btn-warning">Blokla</button>
                     <button type="button" class="btn btn-small btn-cancel" onclick="event.stopPropagation(); this.closest('.admin-form').style.display='none'; this.closest('.slot').querySelector('.slot-label').style.display='';">İptal</button>
                   </form>
@@ -184,9 +229,44 @@ function toggleAdminForm(cell) {
   if (form) {
     form.style.display = 'flex';
     label.style.display = 'none';
-    form.querySelector('input[name="description"]').focus();
+    const select = form.querySelector('select[name="description"]');
+    if (select) select.focus();
+    else {
+      const input = form.querySelector('input[name="description"]');
+      if (input) input.focus();
+    }
   }
 }
+
+// Kategori dropdown'ında "Özel yazayım..." seçilince text input göster
+document.addEventListener('change', function(e) {
+  if (e.target.name === 'description' && e.target.tagName === 'SELECT') {
+    const customInput = e.target.closest('.admin-form').querySelector('.custom-desc-input');
+    if (e.target.value === '__custom__') {
+      customInput.style.display = '';
+      customInput.focus();
+      customInput.required = true;
+    } else {
+      customInput.style.display = 'none';
+      customInput.value = '';
+      customInput.required = false;
+    }
+  }
+});
+
+// Form gönderilmeden önce: "Özel yazayım" seçiliyse, custom değeri description'a aktar
+document.addEventListener('submit', function(e) {
+  const form = e.target;
+  if (form.action && form.action.includes('/admin/block')) {
+    const select = form.querySelector('select[name="description"]');
+    if (select && select.value === '__custom__') {
+      const customInput = form.querySelector('.custom-desc-input');
+      select.value = customInput.value || 'Meşgul';
+      // Remove custom input so it doesn't get submitted
+      customInput.removeAttribute('name');
+    }
+  }
+});
 </script>
 
 <%- include('partials/footer') %>

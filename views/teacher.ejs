@@ -51,7 +51,7 @@
                     <input type="hidden" name="day" value="<%= day %>">
                     <input type="hidden" name="start_time" value="<%= hour %>">
                     <input type="hidden" name="token" value="<%= teacher.token %>">
-                    <input type="text" name="description" placeholder="Ders adı (opsiyonel)" class="book-input">
+                    <input type="text" name="description" placeholder="Konu notu (opsiyonel)" class="book-input">
                     <button type="submit" class="btn btn-small btn-primary">Rezerve Et</button>
                     <button type="button" class="btn btn-small btn-cancel" onclick="event.stopPropagation(); this.closest('.book-form').style.display='none'; this.closest('.slot').querySelector('.slot-label').style.display='';">İptal</button>
                   </form>
