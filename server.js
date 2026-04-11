@@ -44,13 +44,23 @@ app.set('trust proxy', 1);
 // ÖĞRETMEN ROTALARI
 // ==========================================
 
-// Ana sayfa - Öğretmen girişi
+// Ana sayfa - bilgilendirme
 app.get('/', (req, res) => {
-  const teacherName = req.query.name || '';
+  res.render('home');
+});
+
+// Öğretmen özel linki ile giriş
+app.get('/t/:token', (req, res) => {
+  const teacher = db.getTeacherByToken(req.params.token);
+
+  if (!teacher) {
+    return res.status(404).render('home', { error: 'Geçersiz link. Lütfen size verilen linki kontrol edin.' });
+  }
+
   const grid = db.getSlotsGrid();
 
   res.render('teacher', {
-    teacherName,
+    teacher,
     grid,
     DAYS: db.DAYS,
     DAYS_DISPLAY: db.DAYS_DISPLAY,
@@ -60,17 +70,21 @@ app.get('/', (req, res) => {
 
 // Öğretmen ders rezerve etsin
 app.post('/book', (req, res) => {
-  const { day, start_time, teacher_name, description } = req.body;
+  const { day, start_time, token, description } = req.body;
 
-  if (!day || !start_time || !teacher_name || !teacher_name.trim()) {
-    req.session.error = 'Lütfen tüm alanları doldurun.';
-    return res.redirect('/?name=' + encodeURIComponent(teacher_name || ''));
+  const teacher = db.getTeacherByToken(token);
+  if (!teacher) {
+    return res.status(403).send('Geçersiz erişim.');
   }
 
-  const trimmedName = teacher_name.trim();
+  if (!day || !start_time) {
+    req.session.error = 'Lütfen bir saat seçin.';
+    return res.redirect('/t/' + token);
+  }
+
   const trimmedDesc = (description || '').trim();
 
-  const success = db.bookSlot(day, start_time, trimmedName, trimmedDesc || trimmedName + ' dersi');
+  const success = db.bookSlot(day, start_time, teacher.name, trimmedDesc || teacher.name + ' dersi');
 
   if (success) {
     req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} saati başarıyla rezerve edildi.`;
@@ -78,7 +92,7 @@ app.post('/book', (req, res) => {
     req.session.error = 'Bu saat zaten dolu. Lütfen başka bir saat seçin.';
   }
 
-  res.redirect('/?name=' + encodeURIComponent(trimmedName));
+  res.redirect('/t/' + token);
 });
 
 // ==========================================
@@ -119,13 +133,17 @@ app.post('/admin/login', (req, res) => {
 app.get('/admin', requireAdmin, (req, res) => {
   const grid = db.getSlotsGrid();
   const stats = db.getStats();
+  const teachers = db.getAllTeachers();
 
   res.render('admin', {
     grid,
     stats,
+    teachers,
     DAYS: db.DAYS,
     DAYS_DISPLAY: db.DAYS_DISPLAY,
-    HOURS: db.HOURS
+    HOURS: db.HOURS,
+    host: req.get('host'),
+    protocol: req.protocol
   });
 });
 
@@ -154,6 +172,33 @@ app.post('/admin/free', requireAdmin, (req, res) => {
     req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} serbest bırakıldı.`;
   } else {
     req.session.error = 'Slot bulunamadı.';
+  }
+
+  res.redirect('/admin');
+});
+
+// Admin: öğretmen ekle
+app.post('/admin/teacher/add', requireAdmin, (req, res) => {
+  const { name } = req.body;
+
+  if (!name || !name.trim()) {
+    req.session.error = 'Öğretmen adı boş olamaz.';
+    return res.redirect('/admin');
+  }
+
+  const teacher = db.addTeacher(name.trim());
+  req.session.success = `"${teacher.name}" eklendi. Özel link: /t/${teacher.token}`;
+  res.redirect('/admin');
+});
+
+// Admin: öğretmen sil
+app.post('/admin/teacher/delete', requireAdmin, (req, res) => {
+  const { id } = req.body;
+
+  if (db.deleteTeacher(id)) {
+    req.session.success = 'Öğretmen silindi.';
+  } else {
+    req.session.error = 'Öğretmen bulunamadı.';
   }
 
   res.redirect('/admin');

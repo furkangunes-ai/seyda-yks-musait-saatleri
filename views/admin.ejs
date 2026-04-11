@@ -40,6 +40,55 @@
     </div>
   </div>
 
+  <!-- ==========================================
+       ÖĞRETMEN YÖNETİMİ
+       ========================================== -->
+  <div class="section-card">
+    <h2>Öğretmen Yönetimi</h2>
+    <p class="section-desc">Öğretmen ekle ve her birine özel link oluştur. Bu linkleri öğretmenlerine gönder.</p>
+
+    <!-- Yeni Öğretmen Ekle -->
+    <form action="/admin/teacher/add" method="POST" class="add-teacher-form">
+      <input type="text" name="name" placeholder="Öğretmen adı (örn: Ahmet Hoca)" required class="teacher-input">
+      <button type="submit" class="btn btn-primary">Ekle</button>
+    </form>
+
+    <!-- Mevcut Öğretmenler -->
+    <% if (teachers.length > 0) { %>
+      <table class="teachers-table">
+        <thead>
+          <tr>
+            <th>Ad</th>
+            <th>Özel Link</th>
+            <th>Kopyala</th>
+            <th>Sil</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const t of teachers) { %>
+            <tr>
+              <td><strong><%= t.name %></strong></td>
+              <td class="link-cell">
+                <code class="teacher-link" id="link-<%= t.id %>"><%= protocol %>://<%= host %>/t/<%= t.token %></code>
+              </td>
+              <td>
+                <button class="btn btn-tiny btn-primary" onclick="copyLink('<%= t.id %>')">Kopyala</button>
+              </td>
+              <td>
+                <form action="/admin/teacher/delete" method="POST" class="inline-form">
+                  <input type="hidden" name="id" value="<%= t.id %>">
+                  <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('<%= t.name %> silinsin mi?')">Sil</button>
+                </form>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p class="empty-msg">Henüz öğretmen eklenmedi.</p>
+    <% } %>
+  </div>
+
   <!-- Renk Açıklaması -->
   <div class="legend">
     <span class="legend-item"><span class="legend-color available"></span> Müsait</span>
@@ -113,6 +162,17 @@
 </div>
 
 <script>
+function copyLink(teacherId) {
+  const linkEl = document.getElementById('link-' + teacherId);
+  const text = linkEl.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = linkEl.closest('tr').querySelector('.btn-primary');
+    const orig = btn.textContent;
+    btn.textContent = 'Kopyalandı!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  });
+}
+
 function toggleAdminForm(cell) {
   document.querySelectorAll('.admin-form').forEach(f => {
     f.style.display = 'none';

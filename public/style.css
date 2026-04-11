@@ -490,6 +490,101 @@ body {
 }
 
 /* ==========================================
+   ÖĞRETMEN YÖNETİM BÖLÜMÜ
+   ========================================== */
+
+.section-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.section-card h2 {
+  font-size: 1.2rem;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.section-desc {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.add-teacher-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.teacher-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.teacher-input:focus {
+  outline: none;
+  border-color: #4361ee;
+}
+
+.teachers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.teachers-table th {
+  background: #f8f9fa;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #555;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.teachers-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+
+.link-cell {
+  max-width: 300px;
+}
+
+.teacher-link {
+  display: inline-block;
+  background: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  word-break: break-all;
+  color: #333;
+}
+
+.empty-msg {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+  padding: 16px;
+}
+
+.home-info {
+  background: #f0f4ff;
+  border: 1px solid #d0d8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+  color: #444;
+  font-size: 0.9rem;
+}
+
+/* ==========================================
    ADMİN LİNKİ
    ========================================== */
 

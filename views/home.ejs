@@ -1,0 +1,22 @@
+<%- include('partials/head', { title: "Şeyda'nın Ders Programı" }) %>
+
+<div class="container">
+  <div class="name-form-container">
+    <h1>Şeyda'nın Ders Programı</h1>
+    <p>Bu sistem Şeyda'nın öğretmenlerinin ders saati ayarlayabilmesi için tasarlanmıştır.</p>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <div class="home-info">
+      <p>Öğretmenseniz, size özel gönderilen linki kullanarak programa erişebilirsiniz.</p>
+    </div>
+
+    <div class="admin-link">
+      <a href="/admin/login">Yönetici Girişi</a>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

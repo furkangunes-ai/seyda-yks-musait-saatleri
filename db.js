@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const crypto = require('crypto');
 
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'schedule.db');
 const db = new Database(dbPath);
@@ -7,7 +8,16 @@ const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// Tablo oluştur
+// Tablolar oluştur
+db.exec(`
+  CREATE TABLE IF NOT EXISTS teachers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    created_at TEXT DEFAULT (datetime('now'))
+  )
+`);
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS time_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,6 +140,35 @@ function getStats() {
   return stats;
 }
 
+// ==========================================
+// ÖĞRETMEN YÖNETİMİ
+// ==========================================
+
+function generateToken() {
+  return crypto.randomBytes(6).toString('hex');
+}
+
+function addTeacher(name) {
+  const token = generateToken();
+  const stmt = db.prepare('INSERT INTO teachers (name, token) VALUES (?, ?)');
+  stmt.run(name.trim(), token);
+  return { name: name.trim(), token };
+}
+
+function getAllTeachers() {
+  return db.prepare('SELECT * FROM teachers ORDER BY name').all();
+}
+
+function getTeacherByToken(token) {
+  return db.prepare('SELECT * FROM teachers WHERE token = ?').get(token);
+}
+
+function deleteTeacher(id) {
+  const stmt = db.prepare('DELETE FROM teachers WHERE id = ?');
+  const result = stmt.run(id);
+  return result.changes > 0;
+}
+
 module.exports = {
   seedSlots,
   getAllSlots,
@@ -139,6 +178,10 @@ module.exports = {
   blockSlot,
   freeSlot,
   getStats,
+  addTeacher,
+  getAllTeachers,
+  getTeacherByToken,
+  deleteTeacher,
   DAYS,
   DAYS_DISPLAY,
   HOURS
