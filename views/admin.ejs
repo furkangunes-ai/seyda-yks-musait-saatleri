@@ -1,0 +1,132 @@
+<%- include('partials/head', { title: "Yönetici Paneli - Şeyda" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>Yönetici Paneli</h1>
+        <p class="subtitle">Merhaba Şeyda! Programını buradan yönetebilirsin.</p>
+      </div>
+      <form action="/admin/logout" method="POST" style="display:inline">
+        <button type="submit" class="btn btn-secondary">Çıkış Yap</button>
+      </form>
+    </div>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <!-- İstatistikler -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-number"><%= stats.available %></span>
+      <span class="stat-label">Müsait</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number"><%= stats.booked %></span>
+      <span class="stat-label">Rezerve</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number"><%= stats.blocked %></span>
+      <span class="stat-label">Bloklu</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number"><%= stats.total %></span>
+      <span class="stat-label">Toplam</span>
+    </div>
+  </div>
+
+  <!-- Renk Açıklaması -->
+  <div class="legend">
+    <span class="legend-item"><span class="legend-color available"></span> Müsait</span>
+    <span class="legend-item"><span class="legend-color booked"></span> Öğretmen Rezerve</span>
+    <span class="legend-item"><span class="legend-color blocked"></span> Bloklu (Deneme/Özel Ders)</span>
+  </div>
+
+  <!-- Haftalık Program Tablosu -->
+  <div class="table-wrapper">
+    <table class="schedule-table admin-table">
+      <thead>
+        <tr>
+          <th class="time-header">Saat</th>
+          <% for (const day of DAYS) { %>
+            <th><%= DAYS_DISPLAY[day] %></th>
+          <% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const hour of HOURS) { %>
+          <tr>
+            <td class="time-cell">
+              <strong><%= hour %></strong>
+              <span class="time-end"><%= String(parseInt(hour) + 1).padStart(2, '0') %>:00</span>
+            </td>
+            <% for (const day of DAYS) { %>
+              <% const slot = grid[day] && grid[day][hour]; %>
+              <% if (slot && slot.status === 'available') { %>
+                <td class="slot slot-available" onclick="toggleAdminForm(this)">
+                  <span class="slot-label">Müsait</span>
+                  <form action="/admin/block" method="POST" class="admin-form" onclick="event.stopPropagation()">
+                    <input type="hidden" name="day" value="<%= day %>">
+                    <input type="hidden" name="start_time" value="<%= hour %>">
+                    <input type="text" name="description" placeholder="Açıklama (örn: Deneme sınavı)" class="book-input">
+                    <button type="submit" class="btn btn-small btn-warning">Blokla</button>
+                    <button type="button" class="btn btn-small btn-cancel" onclick="event.stopPropagation(); this.closest('.admin-form').style.display='none'; this.closest('.slot').querySelector('.slot-label').style.display='';">İptal</button>
+                  </form>
+                </td>
+              <% } else if (slot && slot.status === 'booked') { %>
+                <td class="slot slot-booked-admin">
+                  <div class="slot-detail">
+                    <strong><%= slot.teacher_name %></strong>
+                    <% if (slot.description) { %>
+                      <small><%= slot.description %></small>
+                    <% } %>
+                  </div>
+                  <form action="/admin/free" method="POST" class="inline-form">
+                    <input type="hidden" name="day" value="<%= day %>">
+                    <input type="hidden" name="start_time" value="<%= hour %>">
+                    <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu rezervasyonu silmek istediğine emin misin?')">Sil</button>
+                  </form>
+                </td>
+              <% } else if (slot && slot.status === 'blocked') { %>
+                <td class="slot slot-blocked-admin">
+                  <div class="slot-detail">
+                    <strong><%= slot.description || 'Meşgul' %></strong>
+                  </div>
+                  <form action="/admin/free" method="POST" class="inline-form">
+                    <input type="hidden" name="day" value="<%= day %>">
+                    <input type="hidden" name="start_time" value="<%= hour %>">
+                    <button type="submit" class="btn btn-tiny btn-secondary">Aç</button>
+                  </form>
+                </td>
+              <% } %>
+            <% } %>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function toggleAdminForm(cell) {
+  document.querySelectorAll('.admin-form').forEach(f => {
+    f.style.display = 'none';
+    const lbl = f.closest('.slot').querySelector('.slot-label');
+    if (lbl) lbl.style.display = '';
+  });
+  const form = cell.querySelector('.admin-form');
+  const label = cell.querySelector('.slot-label');
+  if (form) {
+    form.style.display = 'flex';
+    label.style.display = 'none';
+    form.querySelector('input[name="description"]').focus();
+  }
+}
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,24 @@
+<%- include('partials/head', { title: "Yönetici Girişi" }) %>
+
+<div class="container">
+  <div class="login-container">
+    <h1>Yönetici Girişi</h1>
+    <p>Şeyda, programını yönetmek için giriş yap.</p>
+
+    <% if (error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <form action="/admin/login" method="POST" class="login-form">
+      <div class="form-group">
+        <label for="password">Şifre</label>
+        <input type="password" id="password" name="password" placeholder="Şifreni gir" required autofocus>
+      </div>
+      <button type="submit" class="btn btn-primary">Giriş Yap</button>
+    </form>
+
+    <a href="/" class="back-link">← Ana Sayfaya Dön</a>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

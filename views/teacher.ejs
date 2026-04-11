@@ -1,0 +1,110 @@
+<%- include('partials/head', { title: "Şeyda'nın Ders Programı" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <h1>Şeyda'nın Haftalık Programı</h1>
+    <p class="subtitle">Müsait saatleri görüntüleyin ve ders rezerve edin</p>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <% if (!teacherName) { %>
+    <!-- İsim Giriş Formu -->
+    <div class="name-form-container">
+      <h2>Hoş Geldiniz</h2>
+      <p>Programı görüntülemek ve ders ayarlamak için adınızı girin.</p>
+      <form action="/" method="GET" class="name-form">
+        <div class="form-group">
+          <label for="name">Adınız Soyadınız</label>
+          <input type="text" id="name" name="name" placeholder="Örn: Ahmet Hoca" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Programı Görüntüle</button>
+      </form>
+    </div>
+  <% } else { %>
+    <!-- Öğretmen Bilgisi -->
+    <div class="teacher-info">
+      <span>Hoş geldiniz, <strong><%= teacherName %></strong></span>
+      <a href="/" class="btn btn-small btn-secondary">Çıkış</a>
+    </div>
+
+    <!-- Renk Açıklaması -->
+    <div class="legend">
+      <span class="legend-item"><span class="legend-color available"></span> Müsait</span>
+      <span class="legend-item"><span class="legend-color busy"></span> Dolu</span>
+    </div>
+
+    <!-- Haftalık Program Tablosu -->
+    <div class="table-wrapper">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th class="time-header">Saat</th>
+            <% for (const day of DAYS) { %>
+              <th><%= DAYS_DISPLAY[day] %></th>
+            <% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const hour of HOURS) { %>
+            <tr>
+              <td class="time-cell">
+                <strong><%= hour %></strong>
+                <span class="time-end"><%= String(parseInt(hour) + 1).padStart(2, '0') %>:00</span>
+              </td>
+              <% for (const day of DAYS) { %>
+                <% const slot = grid[day] && grid[day][hour]; %>
+                <% if (slot && slot.status === 'available') { %>
+                  <td class="slot slot-available" onclick="toggleBookForm(this)">
+                    <span class="slot-label">Müsait</span>
+                    <form action="/book" method="POST" class="book-form" onclick="event.stopPropagation()">
+                      <input type="hidden" name="day" value="<%= day %>">
+                      <input type="hidden" name="start_time" value="<%= hour %>">
+                      <input type="hidden" name="teacher_name" value="<%= teacherName %>">
+                      <input type="text" name="description" placeholder="Ders adı (opsiyonel)" class="book-input">
+                      <button type="submit" class="btn btn-small btn-primary">Rezerve Et</button>
+                      <button type="button" class="btn btn-small btn-cancel" onclick="event.stopPropagation(); this.closest('.book-form').style.display='none'; this.closest('.slot').querySelector('.slot-label').style.display='';">İptal</button>
+                    </form>
+                  </td>
+                <% } else { %>
+                  <td class="slot slot-busy">
+                    <span class="slot-label">Dolu</span>
+                  </td>
+                <% } %>
+              <% } %>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <div class="admin-link">
+    <a href="/admin/login">Yönetici Girişi</a>
+  </div>
+</div>
+
+<script>
+function toggleBookForm(cell) {
+  // Önce tüm açık formları kapat
+  document.querySelectorAll('.book-form').forEach(f => {
+    f.style.display = 'none';
+    f.closest('.slot').querySelector('.slot-label').style.display = '';
+  });
+  // Tıklanan hücrenin formunu aç
+  const form = cell.querySelector('.book-form');
+  const label = cell.querySelector('.slot-label');
+  if (form) {
+    form.style.display = 'flex';
+    label.style.display = 'none';
+    form.querySelector('input[name="description"]').focus();
+  }
+}
+</script>
+
+<%- include('partials/footer') %>
