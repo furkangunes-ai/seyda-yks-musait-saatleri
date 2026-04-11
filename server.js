@@ -90,7 +90,7 @@ app.post('/book', (req, res) => {
   const success = db.bookSlot(day, start_time, teacher.name, fullDesc);
 
   if (success) {
-    req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} saati başarıyla rezerve edildi.`;
+    req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} saati başarıyla onaylandı.`;
   } else {
     req.session.error = 'Bu saat zaten dolu. Lütfen başka bir saat seçin.';
   }
