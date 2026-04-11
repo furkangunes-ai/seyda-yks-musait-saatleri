@@ -34,6 +34,13 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  )
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS time_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     day TEXT NOT NULL,
@@ -43,10 +50,18 @@ db.exec(`
     teacher_name TEXT,
     description TEXT,
     is_admin_blocked INTEGER NOT NULL DEFAULT 0,
+    is_recurring INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     UNIQUE(day, start_time)
   )
 `);
+
+// is_recurring sütunu yoksa ekle (mevcut veritabanları için)
+try {
+  db.exec(`ALTER TABLE time_slots ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0`);
+} catch (e) {
+  // sütun zaten var
+}
 
 const DAYS = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
@@ -109,25 +124,25 @@ function getSlot(day, startTime) {
   return db.prepare('SELECT * FROM time_slots WHERE day = ? AND start_time = ?').get(day, startTime);
 }
 
-// Öğretmen slot rezerve etsin
+// Öğretmen slot onayla (her zaman değişken - is_recurring = 0)
 function bookSlot(day, startTime, teacherName, description) {
   const stmt = db.prepare(`
     UPDATE time_slots
-    SET status = 'booked', teacher_name = ?, description = ?, is_admin_blocked = 0
+    SET status = 'booked', teacher_name = ?, description = ?, is_admin_blocked = 0, is_recurring = 0
     WHERE day = ? AND start_time = ? AND status = 'available'
   `);
   const result = stmt.run(teacherName, description, day, startTime);
   return result.changes > 0;
 }
 
-// Admin slot blokla
-function blockSlot(day, startTime, description) {
+// Admin slot blokla (sabit veya değişken)
+function blockSlot(day, startTime, description, isRecurring) {
   const stmt = db.prepare(`
     UPDATE time_slots
-    SET status = 'blocked', description = ?, is_admin_blocked = 1, teacher_name = NULL
+    SET status = 'blocked', description = ?, is_admin_blocked = 1, teacher_name = NULL, is_recurring = ?
     WHERE day = ? AND start_time = ?
   `);
-  const result = stmt.run(description, day, startTime);
+  const result = stmt.run(description, isRecurring ? 1 : 0, day, startTime);
   return result.changes > 0;
 }
 
@@ -135,11 +150,62 @@ function blockSlot(day, startTime, description) {
 function freeSlot(day, startTime) {
   const stmt = db.prepare(`
     UPDATE time_slots
-    SET status = 'available', teacher_name = NULL, description = NULL, is_admin_blocked = 0
+    SET status = 'available', teacher_name = NULL, description = NULL, is_admin_blocked = 0, is_recurring = 0
     WHERE day = ? AND start_time = ?
   `);
   const result = stmt.run(day, startTime);
   return result.changes > 0;
+}
+
+// ==========================================
+// HAFTALIK OTOMATİK TEMİZLEME
+// ==========================================
+
+function getMeta(key) {
+  const row = db.prepare('SELECT value FROM meta WHERE key = ?').get(key);
+  return row ? row.value : null;
+}
+
+function setMeta(key, value) {
+  db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(key, value);
+}
+
+// Bir günün değişken (non-recurring) slotlarını temizle
+function resetDaySlots(day) {
+  const stmt = db.prepare(`
+    UPDATE time_slots
+    SET status = 'available', teacher_name = NULL, description = NULL, is_admin_blocked = 0
+    WHERE day = ? AND is_recurring = 0 AND status != 'available'
+  `);
+  return stmt.run(day).changes;
+}
+
+// Geçmiş günleri otomatik temizle
+function autoResetPastDays() {
+  const now = new Date();
+  // Pazartesi = 0, Pazar = 6 (Türk takvimi)
+  const currentDayIndex = (now.getDay() + 6) % 7;
+  const today = now.toISOString().split('T')[0];
+
+  // Bu haftanın Pazartesi tarihini bul
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - currentDayIndex);
+  const mondayStr = monday.toISOString().split('T')[0];
+
+  // Geçmiş günleri temizle (bugünden önceki günler)
+  for (let i = 0; i < currentDayIndex; i++) {
+    const day = DAYS[i];
+    const lastReset = getMeta('last_reset_' + day);
+
+    // Bu haftanın Pazartesisinden sonra temizlenmemişse temizle
+    if (!lastReset || lastReset < mondayStr) {
+      const cleared = resetDaySlots(day);
+      setMeta('last_reset_' + day, today);
+      if (cleared > 0) {
+        console.log(`[Auto-Reset] ${DAYS_DISPLAY[day]}: ${cleared} değişken slot temizlendi.`);
+      }
+    }
+  }
 }
 
 // İstatistikler
@@ -224,6 +290,7 @@ module.exports = {
   blockSlot,
   freeSlot,
   getStats,
+  autoResetPastDays,
   addTeacher,
   getAllTeachers,
   getTeacherByToken,

@@ -12,6 +12,9 @@ const PORT = process.env.PORT || 3000;
 db.seedSlots();
 db.seedCategories();
 
+// Başlangıçta geçmiş günleri temizle
+db.autoResetPastDays();
+
 // Middleware
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -40,6 +43,12 @@ app.use((req, res, next) => {
 
 // Trust proxy (Railway arkasında)
 app.set('trust proxy', 1);
+
+// Her istekte geçmiş günleri otomatik temizle
+app.use((req, res, next) => {
+  db.autoResetPastDays();
+  next();
+});
 
 // ==========================================
 // ÖĞRETMEN ROTALARI
@@ -154,13 +163,15 @@ app.get('/admin', requireAdmin, (req, res) => {
 
 // Admin: slot blokla
 app.post('/admin/block', requireAdmin, (req, res) => {
-  const { day, start_time, description, custom_description } = req.body;
+  const { day, start_time, description, custom_description, recurring } = req.body;
   const finalDesc = (description === '__custom__' ? custom_description : description) || 'Meşgul';
+  const isRecurring = recurring === '1';
 
-  const success = db.blockSlot(day, start_time, finalDesc);
+  const success = db.blockSlot(day, start_time, finalDesc, isRecurring);
 
   if (success) {
-    req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} bloklandı.`;
+    const typeLabel = isRecurring ? ' (sabit - her hafta)' : '';
+    req.session.success = `${db.DAYS_DISPLAY[day]} ${start_time} bloklandı${typeLabel}.`;
   } else {
     req.session.error = 'Slot bulunamadı.';
   }

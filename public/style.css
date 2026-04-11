@@ -262,6 +262,10 @@ body {
   background: #ff9800;
 }
 
+.legend-color.recurring {
+  background: #ab47bc;
+}
+
 /* ==========================================
    İSTATİSTİKLER
    ========================================== */
@@ -404,7 +408,7 @@ body {
   font-size: 0.7rem;
 }
 
-/* Bloklu - Admin görünümü (turuncu) */
+/* Değişken bloklu - Admin görünümü (turuncu) */
 .slot-blocked-admin {
   background: #fff3e0;
 }
@@ -414,8 +418,56 @@ body {
   font-size: 0.8rem;
 }
 
+/* Sabit (recurring) bloklu - Admin görünümü (koyu mor) */
+.slot-recurring-admin {
+  background: #f3e5f5;
+}
+
+.slot-recurring-admin .slot-detail strong {
+  color: #6a1b9a;
+  font-size: 0.8rem;
+}
+
 .slot-detail {
   margin-bottom: 4px;
+}
+
+/* Sabit / Değişken badge */
+.slot-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+  letter-spacing: 0.5px;
+}
+
+.badge-recurring {
+  background: #ce93d8;
+  color: white;
+}
+
+.badge-variable {
+  background: #e0e0e0;
+  color: #666;
+}
+
+/* Checkbox label in slot form */
+.recurring-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: #555;
+  cursor: pointer;
+}
+
+.recurring-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 
 .inline-form {

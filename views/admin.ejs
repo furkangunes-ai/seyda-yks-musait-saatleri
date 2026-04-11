@@ -126,8 +126,9 @@
   <!-- Renk Açıklaması -->
   <div class="legend">
     <span class="legend-item"><span class="legend-color available"></span> Müsait</span>
-    <span class="legend-item"><span class="legend-color booked"></span> Öğretmen Rezerve</span>
-    <span class="legend-item"><span class="legend-color blocked"></span> Bloklu (Kendi Etkinliğin)</span>
+    <span class="legend-item"><span class="legend-color booked"></span> Öğretmen Onayı (haftalık sıfırlanır)</span>
+    <span class="legend-item"><span class="legend-color blocked"></span> Değişken Blok (haftalık sıfırlanır)</span>
+    <span class="legend-item"><span class="legend-color recurring"></span> Sabit Blok (her hafta tekrarlar)</span>
   </div>
 
   <!-- Haftalık Program Tablosu -->
@@ -168,6 +169,10 @@
                     <% } else { %>
                       <input type="text" name="description" placeholder="Açıklama" class="book-input">
                     <% } %>
+                    <label class="recurring-label">
+                      <input type="checkbox" name="recurring" value="1">
+                      <span>Her hafta tekrarlansın</span>
+                    </label>
                     <button type="submit" class="btn btn-small btn-warning">Blokla</button>
                     <button type="button" class="btn btn-small btn-cancel" onclick="event.stopPropagation(); this.closest('.admin-form').style.display='none'; this.closest('.slot').querySelector('.slot-label').style.display='';">İptal</button>
                   </form>
@@ -180,10 +185,23 @@
                       <small><%= slot.description %></small>
                     <% } %>
                   </div>
+                  <span class="slot-badge badge-variable">haftalık</span>
                   <form action="/admin/free" method="POST" class="inline-form">
                     <input type="hidden" name="day" value="<%= day %>">
                     <input type="hidden" name="start_time" value="<%= hour %>">
-                    <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu rezervasyonu silmek istediğine emin misin?')">Sil</button>
+                    <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu onayı silmek istediğine emin misin?')">Sil</button>
+                  </form>
+                </td>
+              <% } else if (slot && slot.status === 'blocked' && slot.is_recurring) { %>
+                <td class="slot slot-recurring-admin">
+                  <div class="slot-detail">
+                    <strong><%= slot.description || 'Meşgul' %></strong>
+                  </div>
+                  <span class="slot-badge badge-recurring">sabit</span>
+                  <form action="/admin/free" method="POST" class="inline-form">
+                    <input type="hidden" name="day" value="<%= day %>">
+                    <input type="hidden" name="start_time" value="<%= hour %>">
+                    <button type="submit" class="btn btn-tiny btn-secondary" onclick="return confirm('Bu sabit bloku kaldırmak istediğine emin misin?')">Kaldır</button>
                   </form>
                 </td>
               <% } else if (slot && slot.status === 'blocked') { %>
@@ -191,6 +209,7 @@
                   <div class="slot-detail">
                     <strong><%= slot.description || 'Meşgul' %></strong>
                   </div>
+                  <span class="slot-badge badge-variable">haftalık</span>
                   <form action="/admin/free" method="POST" class="inline-form">
                     <input type="hidden" name="day" value="<%= day %>">
                     <input type="hidden" name="start_time" value="<%= hour %>">
@@ -238,7 +257,6 @@ function toggleAdminForm(cell) {
   }
 }
 
-// Kategori dropdown'ında "Özel yazayım..." seçilince text input göster
 document.addEventListener('change', function(e) {
   if (e.target.name === 'description' && e.target.tagName === 'SELECT') {
     const customInput = e.target.closest('.admin-form').querySelector('.custom-desc-input');
@@ -254,7 +272,6 @@ document.addEventListener('change', function(e) {
   }
 });
 
-// Form gönderilmeden önce: "Özel yazayım" seçiliyse, custom değeri description'a aktar
 document.addEventListener('submit', function(e) {
   const form = e.target;
   if (form.action && form.action.includes('/admin/block')) {
@@ -262,7 +279,6 @@ document.addEventListener('submit', function(e) {
     if (select && select.value === '__custom__') {
       const customInput = form.querySelector('.custom-desc-input');
       select.value = customInput.value || 'Meşgul';
-      // Remove custom input so it doesn't get submitted
       customInput.removeAttribute('name');
     }
   }
