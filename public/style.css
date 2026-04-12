@@ -978,6 +978,17 @@ footer {
   margin-bottom: 16px;
 }
 
+.chart-hint {
+  font-size: 0.8rem;
+  color: #666;
+  background: #f8f9fa;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border-left: 3px solid #4361ee;
+  margin: 12px 0;
+  line-height: 1.5;
+}
+
 .chart-summary {
   display: flex;
   gap: 12px;

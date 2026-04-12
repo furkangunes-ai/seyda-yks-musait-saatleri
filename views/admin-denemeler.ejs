@@ -163,6 +163,7 @@
       <div class="chart-container">
         <canvas id="netChart"></canvas>
       </div>
+      <p class="chart-hint">ℹ Aynı günün birden fazla denemesi tek noktada gösterilir (ortalama net). Nokta ne kadar büyükse o gün o kadar çok deneme çözülmüş demektir. Noktanın üzerine gelince o günkü tüm denemeler ayrı ayrı listelenir.</p>
       <div class="chart-summary">
         <% const nets = filtered.map(f => f.net); %>
         <% const avg = (nets.reduce((a,b) => a+b, 0) / nets.length).toFixed(2); %>
@@ -567,9 +568,32 @@ filterType.addEventListener('change', updateFilterSubjects);
 filterScope.addEventListener('change', updateFilterSubjects);
 updateFilterSubjects();
 
-// Grafik
+// Grafik - aynı günün denemelerini grupla, ortalamalarını çizer
 <% if (filtered && filtered.length > 0) { %>
-  const chartData = <%- JSON.stringify(filtered.map(f => ({ date: f.exam_date, net: f.net, subject: f.subject }))) %>;
+  const rawData = <%- JSON.stringify(filtered.map(f => ({ date: f.exam_date, net: f.net, subject: f.subject, notes: f.notes }))) %>;
+
+  // Güne göre grupla
+  const byDate = {};
+  for (const item of rawData) {
+    if (!byDate[item.date]) byDate[item.date] = [];
+    byDate[item.date].push(item);
+  }
+  const dates = Object.keys(byDate).sort();
+  const chartData = dates.map(date => {
+    const items = byDate[date];
+    const avg = items.reduce((s, i) => s + i.net, 0) / items.length;
+    return {
+      date,
+      avgNet: parseFloat(avg.toFixed(2)),
+      count: items.length,
+      items
+    };
+  });
+
+  // Nokta büyüklüğü: deneme sayısı arttıkça nokta büyür
+  // 1 deneme → 5px, 2 → 8, 3 → 11, 4+ → 14-16
+  const pointSizes = chartData.map(d => Math.min(16, 5 + (d.count - 1) * 3));
+
   const ctx = document.getElementById('netChart').getContext('2d');
   new Chart(ctx, {
     type: 'line',
@@ -577,15 +601,17 @@ updateFilterSubjects();
       labels: chartData.map(d => d.date),
       datasets: [{
         label: 'Net',
-        data: chartData.map(d => d.net),
+        data: chartData.map(d => d.avgNet),
         borderColor: '#4361ee',
         backgroundColor: 'rgba(67, 97, 238, 0.1)',
         borderWidth: 2,
         fill: true,
         tension: 0.2,
-        pointRadius: 5,
-        pointHoverRadius: 8,
-        pointBackgroundColor: '#4361ee'
+        pointRadius: pointSizes,
+        pointHoverRadius: pointSizes.map(r => r + 3),
+        pointBackgroundColor: '#4361ee',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
       }]
     },
     options: {
@@ -595,8 +621,25 @@ updateFilterSubjects();
         legend: { display: false },
         tooltip: {
           callbacks: {
+            title: function(ctx) {
+              const d = chartData[ctx[0].dataIndex];
+              return d.date + (d.count > 1 ? ` — ${d.count} deneme` : '');
+            },
+            label: function(ctx) {
+              const d = chartData[ctx.dataIndex];
+              return d.count > 1
+                ? `Günlük Ortalama Net: ${d.avgNet}`
+                : `Net: ${d.avgNet}`;
+            },
             afterLabel: function(ctx) {
-              return chartData[ctx.dataIndex].subject;
+              const d = chartData[ctx.dataIndex];
+              if (d.count > 1) {
+                return d.items.map((i, idx) =>
+                  `  ${idx + 1}. ${i.net.toFixed(2)} — ${i.subject}${i.notes ? ` (${i.notes})` : ''}`
+                );
+              }
+              const it = d.items[0];
+              return `  ${it.subject}${it.notes ? ` (${it.notes})` : ''}`;
             }
           }
         }
