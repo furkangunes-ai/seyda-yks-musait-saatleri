@@ -148,8 +148,9 @@
       <select name="scope" id="filterScope">
         <option value="">Tüm Kapsamlar</option>
         <option value="Genel" <%= filter.scope === 'Genel' ? 'selected' : '' %>>Genel (Tam Deneme)</option>
-        <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan / Branş</option>
-        <option value="Alt Branş" <%= filter.scope === 'Alt Branş' ? 'selected' : '' %>>Alt Ders (Fizik, Kimya vb.)</option>
+        <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan / Branş (Toplu)</option>
+        <option value="Tekil Ders" <%= filter.scope === 'Tekil Ders' ? 'selected' : '' %>>Tekil Ders (Tek ders denemesi)</option>
+        <option value="Alt Branş" <%= filter.scope === 'Alt Branş' ? 'selected' : '' %>>Alt Ders (Composite içinden)</option>
       </select>
       <select name="subject" id="filterSubject">
         <option value="">Tüm Dersler/Alanlar</option>
@@ -225,6 +226,8 @@
                     <span class="scope-badge scope-genel">Genel</span>
                   <% } else if (e.scope === 'Alan') { %>
                     <span class="scope-badge scope-alan">Alan</span>
+                  <% } else if (e.scope === 'Tekil Ders') { %>
+                    <span class="scope-badge scope-tekil">Tekil</span>
                   <% } else if (e.scope === 'Alt Branş') { %>
                     <span class="scope-badge scope-alt">Alt Ders</span>
                   <% } else { %>
@@ -294,7 +297,11 @@ examType.addEventListener('change', function() {
 
   if (this.value && EXAM_STRUCTURE[this.value]) {
     const scopes = Object.keys(EXAM_STRUCTURE[this.value]);
-    const scopeLabels = { Genel: 'Genel (Tam Deneme)', Alan: 'Alan / Branş' };
+    const scopeLabels = {
+      Genel: 'Genel (Tam Deneme)',
+      Alan: 'Alan / Branş (Toplu)',
+      'Tekil Ders': 'Tekil Ders (Sadece bir ders)'
+    };
     for (const s of scopes) {
       const opt = document.createElement('option');
       opt.value = s;

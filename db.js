@@ -302,8 +302,10 @@ function deleteCategory(id) {
 // ==========================================
 
 // TYT/AYT sınav yapısı - Sayısal öğrencisi için hazırlandı
-// Composite denemeler (Tam Deneme, Sosyal/Fen Bilimleri) 'breakdown' içerir:
-// her bir alt dersin soru sayısı ve girdi formunda ayrı girilir
+// Kapsamlar:
+// - Genel: Tam deneme (tüm dersler bir arada, composite)
+// - Alan: Büyük branş denemeleri (Türkçe, Matematik, Sosyal/Fen Bilimleri)
+// - Tekil Ders: Öğrenci sadece tek bir dersin denemesini çözdüyse (Fizik, Kimya vb.)
 const EXAM_STRUCTURE = {
   TYT: {
     Genel: [
@@ -340,6 +342,16 @@ const EXAM_STRUCTURE = {
           { name: 'Biyoloji', total: 6 }
         ]
       }
+    ],
+    'Tekil Ders': [
+      { name: 'Geometri', total: 10 },
+      { name: 'Tarih', total: 5 },
+      { name: 'Coğrafya', total: 5 },
+      { name: 'Felsefe', total: 5 },
+      { name: 'Din Kültürü', total: 5 },
+      { name: 'Fizik', total: 7 },
+      { name: 'Kimya', total: 7 },
+      { name: 'Biyoloji', total: 6 }
     ]
   },
   AYT: {
@@ -366,6 +378,12 @@ const EXAM_STRUCTURE = {
           { name: 'Biyoloji', total: 13 }
         ]
       }
+    ],
+    'Tekil Ders': [
+      { name: 'Geometri', total: 10 },
+      { name: 'Fizik', total: 14 },
+      { name: 'Kimya', total: 13 },
+      { name: 'Biyoloji', total: 13 }
     ]
   }
 };
