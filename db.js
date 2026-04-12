@@ -63,6 +63,23 @@ try {
   // sütun zaten var
 }
 
+// Deneme sınavı sonuçları tablosu
+db.exec(`
+  CREATE TABLE IF NOT EXISTS exam_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    exam_date TEXT NOT NULL,
+    exam_type TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    subject TEXT,
+    correct INTEGER NOT NULL DEFAULT 0,
+    wrong INTEGER NOT NULL DEFAULT 0,
+    empty INTEGER NOT NULL DEFAULT 0,
+    net REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )
+`);
+
 const DAYS = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
 const DAYS_DISPLAY = {
@@ -280,6 +297,85 @@ function deleteCategory(id) {
   return stmt.run(id).changes > 0;
 }
 
+// ==========================================
+// DENEME SINAVLARI
+// ==========================================
+
+// TYT/AYT sınav yapısı - Kapsam ve Ders seçenekleri
+const EXAM_STRUCTURE = {
+  TYT: {
+    Genel: ['Tam Deneme'],
+    Alan: ['Sosyal Bilimler', 'Fen Bilimleri'],
+    Ders: [
+      'Türkçe', 'Matematik',
+      'Tarih', 'Coğrafya', 'Felsefe', 'Din Kültürü',
+      'Fizik', 'Kimya', 'Biyoloji'
+    ]
+  },
+  AYT: {
+    Genel: ['Tam Deneme'],
+    Alan: [
+      'Sayısal', 'Eşit Ağırlık', 'Sözel',
+      'Fen Bilimleri', 'Sosyal Bilimler-1', 'Sosyal Bilimler-2'
+    ],
+    Ders: [
+      'Matematik',
+      'Türk Dili ve Edebiyatı',
+      'Tarih-1', 'Coğrafya-1',
+      'Tarih-2', 'Coğrafya-2', 'Felsefe Grubu', 'Din Kültürü',
+      'Fizik', 'Kimya', 'Biyoloji'
+    ]
+  }
+};
+
+function addExam(data) {
+  const correct = parseInt(data.correct) || 0;
+  const wrong = parseInt(data.wrong) || 0;
+  const empty = parseInt(data.empty) || 0;
+  const net = Math.max(0, correct - wrong / 4);
+
+  const stmt = db.prepare(`
+    INSERT INTO exam_results
+      (exam_date, exam_type, scope, subject, correct, wrong, empty, net, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  return stmt.run(
+    data.exam_date,
+    data.exam_type,
+    data.scope,
+    data.subject || null,
+    correct, wrong, empty, net,
+    data.notes || null
+  );
+}
+
+function getAllExams() {
+  return db.prepare('SELECT * FROM exam_results ORDER BY exam_date DESC, id DESC').all();
+}
+
+function getExamsByFilter(examType, scope, subject) {
+  let query = 'SELECT * FROM exam_results WHERE 1=1';
+  const params = [];
+  if (examType) { query += ' AND exam_type = ?'; params.push(examType); }
+  if (scope) { query += ' AND scope = ?'; params.push(scope); }
+  if (subject) { query += ' AND subject = ?'; params.push(subject); }
+  query += ' ORDER BY exam_date ASC, id ASC';
+  return db.prepare(query).all(...params);
+}
+
+function deleteExam(id) {
+  return db.prepare('DELETE FROM exam_results WHERE id = ?').run(id).changes > 0;
+}
+
+function getExamStats() {
+  const total = db.prepare('SELECT COUNT(*) as cnt FROM exam_results').get().cnt;
+  const lastExam = db.prepare('SELECT exam_date FROM exam_results ORDER BY exam_date DESC LIMIT 1').get();
+  return {
+    total,
+    lastExamDate: lastExam ? lastExam.exam_date : null
+  };
+}
+
 module.exports = {
   seedSlots,
   seedCategories,
@@ -298,6 +394,12 @@ module.exports = {
   getAllCategories,
   addCategory,
   deleteCategory,
+  addExam,
+  getAllExams,
+  getExamsByFilter,
+  deleteExam,
+  getExamStats,
+  EXAM_STRUCTURE,
   DAYS,
   DAYS_DISPLAY,
   HOURS

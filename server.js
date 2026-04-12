@@ -254,6 +254,62 @@ app.post('/admin/category/delete', requireAdmin, (req, res) => {
   res.redirect('/admin');
 });
 
+// ==========================================
+// DENEME SINAVI ROTALARI
+// ==========================================
+
+// Admin: denemeler sayfası
+app.get('/admin/denemeler', requireAdmin, (req, res) => {
+  const { exam_type, scope, subject } = req.query;
+  const allExams = db.getAllExams();
+  const filtered = (exam_type || scope || subject)
+    ? db.getExamsByFilter(exam_type, scope, subject)
+    : [];
+  const stats = db.getExamStats();
+
+  res.render('admin-denemeler', {
+    exams: allExams,
+    filtered,
+    filter: { exam_type: exam_type || '', scope: scope || '', subject: subject || '' },
+    stats,
+    EXAM_STRUCTURE: db.EXAM_STRUCTURE
+  });
+});
+
+// Admin: deneme ekle
+app.post('/admin/denemeler/add', requireAdmin, (req, res) => {
+  const { exam_date, exam_type, scope, subject, correct, wrong, empty, notes } = req.body;
+
+  if (!exam_date || !exam_type || !scope || !subject) {
+    req.session.error = 'Lütfen tarih, sınav türü, kapsam ve ders/alan alanlarını doldurun.';
+    return res.redirect('/admin/denemeler');
+  }
+
+  const c = parseInt(correct) || 0;
+  const w = parseInt(wrong) || 0;
+  const e = parseInt(empty) || 0;
+
+  if (c < 0 || w < 0 || e < 0) {
+    req.session.error = 'Doğru/yanlış/boş sayıları negatif olamaz.';
+    return res.redirect('/admin/denemeler');
+  }
+
+  db.addExam({ exam_date, exam_type, scope, subject, correct: c, wrong: w, empty: e, notes });
+  req.session.success = `${exam_type} ${subject} denemesi eklendi.`;
+  res.redirect('/admin/denemeler');
+});
+
+// Admin: deneme sil
+app.post('/admin/denemeler/delete', requireAdmin, (req, res) => {
+  const { id } = req.body;
+  if (db.deleteExam(id)) {
+    req.session.success = 'Deneme sonucu silindi.';
+  } else {
+    req.session.error = 'Deneme bulunamadı.';
+  }
+  res.redirect('/admin/denemeler');
+});
+
 // Admin çıkış
 app.post('/admin/logout', (req, res) => {
   req.session.destroy(() => {

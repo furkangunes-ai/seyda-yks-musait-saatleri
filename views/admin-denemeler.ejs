@@ -1,0 +1,354 @@
+<%- include('partials/head', { title: "Deneme Sınavları - Şeyda" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>Deneme Sınavları</h1>
+        <p class="subtitle">Çözdüğün denemelerin sonuçlarını takip et ve gidişatını grafikle gör.</p>
+      </div>
+      <div class="nav-buttons">
+        <a href="/admin" class="btn btn-secondary">← Ders Programı</a>
+        <form action="/admin/logout" method="POST" style="display:inline">
+          <button type="submit" class="btn btn-secondary">Çıkış</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <!-- İstatistikler -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-number"><%= stats.total %></span>
+      <span class="stat-label">Toplam Deneme</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number"><%= stats.lastExamDate ? stats.lastExamDate : '—' %></span>
+      <span class="stat-label">Son Deneme</span>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       YENİ DENEME EKLE
+       ========================================== -->
+  <div class="section-card">
+    <h2>Yeni Deneme Ekle</h2>
+    <p class="section-desc">Çözdüğün bir denemenin sonucunu kaydet. Net otomatik hesaplanır (Doğru - Yanlış/4).</p>
+
+    <form action="/admin/denemeler/add" method="POST" class="exam-form" id="examForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tarih *</label>
+          <input type="date" name="exam_date" required value="<%= new Date().toISOString().split('T')[0] %>">
+        </div>
+        <div class="form-group">
+          <label>Sınav Türü *</label>
+          <select name="exam_type" id="examType" required>
+            <option value="">-- Seç --</option>
+            <option value="TYT">TYT</option>
+            <option value="AYT">AYT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Kapsam *</label>
+          <select name="scope" id="examScope" required disabled>
+            <option value="">-- Önce sınav türü seç --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ders / Alan *</label>
+          <select name="subject" id="examSubject" required disabled>
+            <option value="">-- Önce kapsam seç --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Doğru</label>
+          <input type="number" name="correct" min="0" placeholder="0" required>
+        </div>
+        <div class="form-group">
+          <label>Yanlış</label>
+          <input type="number" name="wrong" min="0" placeholder="0" required>
+        </div>
+        <div class="form-group">
+          <label>Boş</label>
+          <input type="number" name="empty" min="0" placeholder="0" required>
+        </div>
+        <div class="form-group">
+          <label>Net (otomatik)</label>
+          <input type="text" id="netDisplay" readonly placeholder="—" class="readonly-input">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group form-group-full">
+          <label>Notlar (opsiyonel)</label>
+          <input type="text" name="notes" placeholder="Örn: Limit Yayınları 12. deneme">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Denemeyi Kaydet</button>
+    </form>
+  </div>
+
+  <!-- ==========================================
+       GRAFİK FİLTRESİ VE GRAFİK
+       ========================================== -->
+  <div class="section-card">
+    <h2>Gidişat Grafiği</h2>
+    <p class="section-desc">Aynı türdeki denemelerin zamanla nasıl değiştiğini gör. Aynı kriterde filtreleme yap.</p>
+
+    <form method="GET" action="/admin/denemeler" class="filter-form">
+      <select name="exam_type" id="filterType">
+        <option value="">Tüm Sınavlar</option>
+        <option value="TYT" <%= filter.exam_type === 'TYT' ? 'selected' : '' %>>TYT</option>
+        <option value="AYT" <%= filter.exam_type === 'AYT' ? 'selected' : '' %>>AYT</option>
+      </select>
+      <select name="scope" id="filterScope">
+        <option value="">Tüm Kapsamlar</option>
+        <option value="Genel" <%= filter.scope === 'Genel' ? 'selected' : '' %>>Genel (Tam Deneme)</option>
+        <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan (Branş)</option>
+        <option value="Ders" <%= filter.scope === 'Ders' ? 'selected' : '' %>>Tek Ders</option>
+      </select>
+      <select name="subject" id="filterSubject">
+        <option value="">Tüm Dersler/Alanlar</option>
+      </select>
+      <button type="submit" class="btn btn-primary">Filtrele</button>
+      <a href="/admin/denemeler" class="btn btn-secondary">Temizle</a>
+    </form>
+
+    <% if (filtered && filtered.length > 0) { %>
+      <div class="chart-container">
+        <canvas id="netChart"></canvas>
+      </div>
+      <div class="chart-summary">
+        <% const nets = filtered.map(f => f.net); %>
+        <% const avg = (nets.reduce((a,b) => a+b, 0) / nets.length).toFixed(2); %>
+        <% const best = Math.max(...nets).toFixed(2); %>
+        <% const worst = Math.min(...nets).toFixed(2); %>
+        <div class="summary-item">
+          <span class="summary-label">Ortalama Net</span>
+          <span class="summary-value"><%= avg %></span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">En Yüksek</span>
+          <span class="summary-value" style="color:#2e7d32"><%= best %></span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">En Düşük</span>
+          <span class="summary-value" style="color:#c62828"><%= worst %></span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Deneme Sayısı</span>
+          <span class="summary-value"><%= filtered.length %></span>
+        </div>
+      </div>
+    <% } else if (filter.exam_type || filter.scope || filter.subject) { %>
+      <p class="empty-msg">Bu filtreye uygun deneme bulunamadı.</p>
+    <% } else { %>
+      <p class="empty-msg">Grafiği görmek için yukarıdan bir filtre seçin.</p>
+    <% } %>
+  </div>
+
+  <!-- ==========================================
+       TÜM DENEMELER LİSTESİ
+       ========================================== -->
+  <div class="section-card">
+    <h2>Tüm Denemeler (<%= exams.length %>)</h2>
+
+    <% if (exams.length > 0) { %>
+      <div class="table-wrapper">
+        <table class="exams-table">
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Sınav</th>
+              <th>Kapsam</th>
+              <th>Ders/Alan</th>
+              <th>Doğru</th>
+              <th>Yanlış</th>
+              <th>Boş</th>
+              <th>Net</th>
+              <th>Not</th>
+              <th>Sil</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% for (const e of exams) { %>
+              <tr>
+                <td><%= e.exam_date %></td>
+                <td><span class="exam-badge exam-badge-<%= e.exam_type.toLowerCase() %>"><%= e.exam_type %></span></td>
+                <td><%= e.scope %></td>
+                <td><strong><%= e.subject %></strong></td>
+                <td><%= e.correct %></td>
+                <td><%= e.wrong %></td>
+                <td><%= e.empty %></td>
+                <td><strong class="net-value"><%= e.net.toFixed(2) %></strong></td>
+                <td><small><%= e.notes || '-' %></small></td>
+                <td>
+                  <form action="/admin/denemeler/delete" method="POST" class="inline-form">
+                    <input type="hidden" name="id" value="<%= e.id %>">
+                    <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu deneme silinsin mi?')">Sil</button>
+                  </form>
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <p class="empty-msg">Henüz deneme eklenmedi.</p>
+    <% } %>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Sınav yapısı - hiyerarşik dropdown'lar için
+const EXAM_STRUCTURE = <%- JSON.stringify(EXAM_STRUCTURE) %>;
+
+// Form için cascading dropdown
+const examType = document.getElementById('examType');
+const examScope = document.getElementById('examScope');
+const examSubject = document.getElementById('examSubject');
+
+examType.addEventListener('change', function() {
+  examScope.disabled = !this.value;
+  examScope.innerHTML = '<option value="">-- Seç --</option>';
+  examSubject.disabled = true;
+  examSubject.innerHTML = '<option value="">-- Önce kapsam seç --</option>';
+
+  if (this.value && EXAM_STRUCTURE[this.value]) {
+    const scopes = Object.keys(EXAM_STRUCTURE[this.value]);
+    const scopeLabels = { Genel: 'Genel (Tam Deneme)', Alan: 'Alan (Branş)', Ders: 'Tek Ders' };
+    for (const s of scopes) {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = scopeLabels[s] || s;
+      examScope.appendChild(opt);
+    }
+  }
+});
+
+examScope.addEventListener('change', function() {
+  examSubject.disabled = !this.value;
+  examSubject.innerHTML = '<option value="">-- Seç --</option>';
+
+  const type = examType.value;
+  if (type && this.value && EXAM_STRUCTURE[type][this.value]) {
+    for (const sub of EXAM_STRUCTURE[type][this.value]) {
+      const opt = document.createElement('option');
+      opt.value = sub;
+      opt.textContent = sub;
+      examSubject.appendChild(opt);
+    }
+  }
+});
+
+// Net hesaplama
+function updateNet() {
+  const c = parseInt(document.querySelector('input[name="correct"]').value) || 0;
+  const w = parseInt(document.querySelector('input[name="wrong"]').value) || 0;
+  const net = Math.max(0, c - w / 4);
+  document.getElementById('netDisplay').value = net.toFixed(2);
+}
+document.querySelector('input[name="correct"]').addEventListener('input', updateNet);
+document.querySelector('input[name="wrong"]').addEventListener('input', updateNet);
+
+// Filtre için cascading dropdown
+const filterType = document.getElementById('filterType');
+const filterScope = document.getElementById('filterScope');
+const filterSubject = document.getElementById('filterSubject');
+const currentFilterSubject = <%- JSON.stringify(filter.subject) %>;
+
+function updateFilterSubjects() {
+  const type = filterType.value;
+  const scope = filterScope.value;
+  const currentVal = filterSubject.value;
+  filterSubject.innerHTML = '<option value="">Tüm Dersler/Alanlar</option>';
+
+  if (type && scope && EXAM_STRUCTURE[type] && EXAM_STRUCTURE[type][scope]) {
+    for (const sub of EXAM_STRUCTURE[type][scope]) {
+      const opt = document.createElement('option');
+      opt.value = sub;
+      opt.textContent = sub;
+      if (sub === currentFilterSubject) opt.selected = true;
+      filterSubject.appendChild(opt);
+    }
+  } else if (type && EXAM_STRUCTURE[type]) {
+    // Kapsam seçilmediyse tüm dersleri göster
+    const all = new Set();
+    for (const s of Object.keys(EXAM_STRUCTURE[type])) {
+      for (const sub of EXAM_STRUCTURE[type][s]) all.add(sub);
+    }
+    for (const sub of all) {
+      const opt = document.createElement('option');
+      opt.value = sub;
+      opt.textContent = sub;
+      if (sub === currentFilterSubject) opt.selected = true;
+      filterSubject.appendChild(opt);
+    }
+  }
+}
+filterType.addEventListener('change', updateFilterSubjects);
+filterScope.addEventListener('change', updateFilterSubjects);
+updateFilterSubjects();
+
+// Grafik
+<% if (filtered && filtered.length > 0) { %>
+  const chartData = <%- JSON.stringify(filtered.map(f => ({ date: f.exam_date, net: f.net, subject: f.subject }))) %>;
+  const ctx = document.getElementById('netChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartData.map(d => d.date),
+      datasets: [{
+        label: 'Net',
+        data: chartData.map(d => d.net),
+        borderColor: '#4361ee',
+        backgroundColor: 'rgba(67, 97, 238, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.2,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#4361ee'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: function(ctx) {
+              return chartData[ctx.dataIndex].subject;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Net' }
+        },
+        x: {
+          title: { display: true, text: 'Tarih' }
+        }
+      }
+    }
+  });
+<% } %>
+</script>
+
+<%- include('partials/footer') %>
