@@ -302,38 +302,70 @@ function deleteCategory(id) {
 // ==========================================
 
 // TYT/AYT sınav yapısı - Sayısal öğrencisi için hazırlandı
-// Her seçeneğin toplam soru sayısı bellidir (ÖSYM standart)
+// Composite denemeler (Tam Deneme, Sosyal/Fen Bilimleri) 'breakdown' içerir:
+// her bir alt dersin soru sayısı ve girdi formunda ayrı girilir
 const EXAM_STRUCTURE = {
   TYT: {
     Genel: [
-      { name: 'Tam Deneme', total: 120 }
+      {
+        name: 'Tam Deneme',
+        total: 120,
+        breakdown: [
+          { name: 'Türkçe', total: 40 },
+          { name: 'Matematik', total: 40 },
+          { name: 'Sosyal Bilimler', total: 20 },
+          { name: 'Fen Bilimleri', total: 20 }
+        ]
+      }
     ],
     Alan: [
       { name: 'Türkçe', total: 40 },
       { name: 'Matematik', total: 40 },
-      { name: 'Geometri', total: 10 },
-      { name: 'Sosyal Bilimler', total: 20 },
-      { name: 'Tarih', total: 5 },
-      { name: 'Coğrafya', total: 5 },
-      { name: 'Felsefe', total: 5 },
-      { name: 'Din Kültürü', total: 5 },
-      { name: 'Fen Bilimleri', total: 20 },
-      { name: 'Fizik', total: 7 },
-      { name: 'Kimya', total: 7 },
-      { name: 'Biyoloji', total: 6 }
+      {
+        name: 'Sosyal Bilimler',
+        total: 20,
+        breakdown: [
+          { name: 'Tarih', total: 5 },
+          { name: 'Coğrafya', total: 5 },
+          { name: 'Felsefe', total: 5 },
+          { name: 'Din Kültürü', total: 5 }
+        ]
+      },
+      {
+        name: 'Fen Bilimleri',
+        total: 20,
+        breakdown: [
+          { name: 'Fizik', total: 7 },
+          { name: 'Kimya', total: 7 },
+          { name: 'Biyoloji', total: 6 }
+        ]
+      }
     ]
   },
   AYT: {
     Genel: [
-      { name: 'Sayısal Tam Deneme', total: 80 }
+      {
+        name: 'Sayısal Tam Deneme',
+        total: 80,
+        breakdown: [
+          { name: 'Matematik', total: 40 },
+          { name: 'Fizik', total: 14 },
+          { name: 'Kimya', total: 13 },
+          { name: 'Biyoloji', total: 13 }
+        ]
+      }
     ],
     Alan: [
       { name: 'Matematik', total: 40 },
-      { name: 'Geometri', total: 10 },
-      { name: 'Fen Bilimleri', total: 40 },
-      { name: 'Fizik', total: 14 },
-      { name: 'Kimya', total: 13 },
-      { name: 'Biyoloji', total: 13 }
+      {
+        name: 'Fen Bilimleri',
+        total: 40,
+        breakdown: [
+          { name: 'Fizik', total: 14 },
+          { name: 'Kimya', total: 13 },
+          { name: 'Biyoloji', total: 13 }
+        ]
+      }
     ]
   }
 };

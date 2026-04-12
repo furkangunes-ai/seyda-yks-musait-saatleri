@@ -71,26 +71,55 @@
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Doğru</label>
-          <input type="number" name="correct" id="correctInput" min="0" placeholder="0" required>
+      <!-- Tek ders için basit giriş (breakdown olmayanlarda gösterilir) -->
+      <div id="simpleInputs">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Doğru</label>
+            <input type="number" name="correct" id="correctInput" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Yanlış</label>
+            <input type="number" name="wrong" id="wrongInput" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Boş (otomatik)</label>
+            <input type="number" name="empty" id="emptyInput" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Net (otomatik)</label>
+            <input type="text" id="netDisplay" readonly placeholder="—" class="readonly-input">
+          </div>
         </div>
-        <div class="form-group">
-          <label>Yanlış</label>
-          <input type="number" name="wrong" id="wrongInput" min="0" placeholder="0" required>
-        </div>
-        <div class="form-group">
-          <label>Boş (otomatik)</label>
-          <input type="number" name="empty" id="emptyInput" min="0" placeholder="0" required>
-        </div>
-        <div class="form-group">
-          <label>Net (otomatik)</label>
-          <input type="text" id="netDisplay" readonly placeholder="—" class="readonly-input">
-        </div>
+        <div id="validationWarning" class="validation-warning" style="display:none"></div>
       </div>
 
-      <div id="validationWarning" class="validation-warning" style="display:none"></div>
+      <!-- Composite deneme için breakdown (her alt dersi ayrı girme) -->
+      <div id="breakdownInputs" style="display:none">
+        <div class="breakdown-header">
+          <h3>Alt Derslerin Sonuçları</h3>
+          <p class="section-desc">Her alt dersin doğru/yanlış/boş sayılarını ayrı ayrı gir. Toplamlar otomatik hesaplanır.</p>
+        </div>
+        <div id="breakdownContainer"></div>
+        <div class="breakdown-totals">
+          <div class="total-box">
+            <span class="total-label">Toplam Doğru</span>
+            <span id="totalCorrect" class="total-value">0</span>
+          </div>
+          <div class="total-box">
+            <span class="total-label">Toplam Yanlış</span>
+            <span id="totalWrong" class="total-value">0</span>
+          </div>
+          <div class="total-box">
+            <span class="total-label">Toplam Boş</span>
+            <span id="totalEmpty" class="total-value">0</span>
+          </div>
+          <div class="total-box">
+            <span class="total-label">Toplam Net</span>
+            <span id="totalNet" class="total-value total-net">0.00</span>
+          </div>
+        </div>
+      </div>
 
       <div class="form-row">
         <div class="form-group form-group-full">
@@ -120,6 +149,7 @@
         <option value="">Tüm Kapsamlar</option>
         <option value="Genel" <%= filter.scope === 'Genel' ? 'selected' : '' %>>Genel (Tam Deneme)</option>
         <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan / Branş</option>
+        <option value="Alt Branş" <%= filter.scope === 'Alt Branş' ? 'selected' : '' %>>Alt Ders (Fizik, Kimya vb.)</option>
       </select>
       <select name="subject" id="filterSubject">
         <option value="">Tüm Dersler/Alanlar</option>
@@ -186,11 +216,22 @@
           </thead>
           <tbody>
             <% for (const e of exams) { %>
-              <tr>
+              <% const isSubRecord = e.scope === 'Alt Branş'; %>
+              <tr class="<%= isSubRecord ? 'sub-row' : 'main-row' %>">
                 <td><%= e.exam_date %></td>
                 <td><span class="exam-badge exam-badge-<%= e.exam_type.toLowerCase() %>"><%= e.exam_type %></span></td>
-                <td><%= e.scope %></td>
-                <td><strong><%= e.subject %></strong></td>
+                <td>
+                  <% if (e.scope === 'Genel') { %>
+                    <span class="scope-badge scope-genel">Genel</span>
+                  <% } else if (e.scope === 'Alan') { %>
+                    <span class="scope-badge scope-alan">Alan</span>
+                  <% } else if (e.scope === 'Alt Branş') { %>
+                    <span class="scope-badge scope-alt">Alt Ders</span>
+                  <% } else { %>
+                    <%= e.scope %>
+                  <% } %>
+                </td>
+                <td><strong><%= isSubRecord ? '↳ ' : '' %><%= e.subject %></strong></td>
                 <td><%= e.correct %></td>
                 <td><%= e.wrong %></td>
                 <td><%= e.empty %></td>
@@ -218,22 +259,25 @@
 // Sınav yapısı - hiyerarşik dropdown'lar için
 const EXAM_STRUCTURE = <%- JSON.stringify(EXAM_STRUCTURE) %>;
 
-// Ders adından toplam soru sayısına hızlı erişim için map
-const SUBJECT_TOTALS = {};
+// Subject adından { total, breakdown } detaylarına hızlı erişim
+const SUBJECT_DETAILS = {};
 for (const type of Object.keys(EXAM_STRUCTURE)) {
-  SUBJECT_TOTALS[type] = {};
+  SUBJECT_DETAILS[type] = {};
   for (const scope of Object.keys(EXAM_STRUCTURE[type])) {
     for (const item of EXAM_STRUCTURE[type][scope]) {
-      SUBJECT_TOTALS[type][item.name] = item.total;
+      SUBJECT_DETAILS[type][item.name] = item;
     }
   }
 }
 
-// Form için cascading dropdown
+// Form elementleri
 const examType = document.getElementById('examType');
 const examScope = document.getElementById('examScope');
 const examSubject = document.getElementById('examSubject');
 const totalInfo = document.getElementById('totalInfo');
+const simpleInputs = document.getElementById('simpleInputs');
+const breakdownInputs = document.getElementById('breakdownInputs');
+const breakdownContainer = document.getElementById('breakdownContainer');
 const correctInput = document.getElementById('correctInput');
 const wrongInput = document.getElementById('wrongInput');
 const emptyInput = document.getElementById('emptyInput');
@@ -246,6 +290,7 @@ examType.addEventListener('change', function() {
   examSubject.disabled = true;
   examSubject.innerHTML = '<option value="">-- Önce kapsam seç --</option>';
   totalInfo.textContent = '';
+  resetInputSection();
 
   if (this.value && EXAM_STRUCTURE[this.value]) {
     const scopes = Object.keys(EXAM_STRUCTURE[this.value]);
@@ -263,6 +308,7 @@ examScope.addEventListener('change', function() {
   examSubject.disabled = !this.value;
   examSubject.innerHTML = '<option value="">-- Seç --</option>';
   totalInfo.textContent = '';
+  resetInputSection();
 
   const type = examType.value;
   if (type && this.value && EXAM_STRUCTURE[type][this.value]) {
@@ -270,7 +316,6 @@ examScope.addEventListener('change', function() {
       const opt = document.createElement('option');
       opt.value = item.name;
       opt.textContent = `${item.name} (${item.total} soru)`;
-      opt.dataset.total = item.total;
       examSubject.appendChild(opt);
     }
   }
@@ -278,22 +323,131 @@ examScope.addEventListener('change', function() {
 
 examSubject.addEventListener('change', function() {
   const type = examType.value;
-  if (type && this.value && SUBJECT_TOTALS[type] && SUBJECT_TOTALS[type][this.value]) {
-    const total = SUBJECT_TOTALS[type][this.value];
-    totalInfo.textContent = `Toplam: ${total} soru`;
-    autoFillEmpty();
-  } else {
+  const item = type && this.value ? SUBJECT_DETAILS[type][this.value] : null;
+
+  if (!item) {
     totalInfo.textContent = '';
+    resetInputSection();
+    return;
   }
-  updateNet();
+
+  totalInfo.textContent = `Toplam: ${item.total} soru`;
+
+  if (item.breakdown && item.breakdown.length > 0) {
+    // Composite deneme - breakdown inputları göster
+    showBreakdownInputs(item);
+  } else {
+    // Tek ders - basit inputları göster
+    showSimpleInputs();
+    autoFillEmpty();
+    updateNet();
+  }
 });
 
-// Boş'u otomatik hesapla: total - correct - wrong
+function resetInputSection() {
+  simpleInputs.style.display = '';
+  breakdownInputs.style.display = 'none';
+  breakdownContainer.innerHTML = '';
+  correctInput.required = true;
+  wrongInput.required = true;
+  emptyInput.required = true;
+}
+
+function showSimpleInputs() {
+  simpleInputs.style.display = '';
+  breakdownInputs.style.display = 'none';
+  breakdownContainer.innerHTML = '';
+  correctInput.required = true;
+  wrongInput.required = true;
+  emptyInput.required = true;
+  // Name'leri geri yükle
+  correctInput.name = 'correct';
+  wrongInput.name = 'wrong';
+  emptyInput.name = 'empty';
+}
+
+function showBreakdownInputs(item) {
+  simpleInputs.style.display = 'none';
+  breakdownInputs.style.display = '';
+  // Simple input'ları submit'te gönderme
+  correctInput.required = false;
+  wrongInput.required = false;
+  emptyInput.required = false;
+  correctInput.name = '';
+  wrongInput.name = '';
+  emptyInput.name = '';
+
+  // Her alt ders için giriş satırı oluştur
+  breakdownContainer.innerHTML = '';
+  for (const sub of item.breakdown) {
+    const row = document.createElement('div');
+    row.className = 'breakdown-row';
+    row.innerHTML = `
+      <div class="breakdown-label">
+        <strong>${sub.name}</strong>
+        <small>${sub.total} soru</small>
+      </div>
+      <div class="breakdown-inputs">
+        <input type="number" name="breakdown[${sub.name}][correct]" min="0" max="${sub.total}" placeholder="Doğru" class="bd-correct" data-total="${sub.total}" required>
+        <input type="number" name="breakdown[${sub.name}][wrong]" min="0" max="${sub.total}" placeholder="Yanlış" class="bd-wrong" data-total="${sub.total}" required>
+        <input type="number" name="breakdown[${sub.name}][empty]" min="0" max="${sub.total}" placeholder="Boş" class="bd-empty" data-total="${sub.total}" required>
+        <input type="text" readonly placeholder="Net" class="bd-net readonly-input">
+      </div>
+    `;
+    breakdownContainer.appendChild(row);
+  }
+
+  // Breakdown input değişikliklerini dinle
+  breakdownContainer.querySelectorAll('input[type="number"]').forEach(inp => {
+    inp.addEventListener('input', updateBreakdownRow);
+  });
+  updateBreakdownTotals();
+}
+
+function updateBreakdownRow(e) {
+  const row = e.target.closest('.breakdown-row');
+  const cEl = row.querySelector('.bd-correct');
+  const wEl = row.querySelector('.bd-wrong');
+  const eEl = row.querySelector('.bd-empty');
+  const nEl = row.querySelector('.bd-net');
+  const total = parseInt(cEl.dataset.total);
+
+  const c = parseInt(cEl.value) || 0;
+  const w = parseInt(wEl.value) || 0;
+
+  // Boş'u otomatik doldur (eğer empty input değişikliği değilse)
+  if (e.target !== eEl) {
+    const remaining = total - c - w;
+    if (remaining >= 0) eEl.value = remaining;
+  }
+
+  const net = Math.max(0, c - w / 4);
+  nEl.value = net.toFixed(2);
+
+  updateBreakdownTotals();
+}
+
+function updateBreakdownTotals() {
+  let tc = 0, tw = 0, te = 0, tn = 0;
+  breakdownContainer.querySelectorAll('.breakdown-row').forEach(row => {
+    const c = parseInt(row.querySelector('.bd-correct').value) || 0;
+    const w = parseInt(row.querySelector('.bd-wrong').value) || 0;
+    const e = parseInt(row.querySelector('.bd-empty').value) || 0;
+    tc += c; tw += w; te += e;
+    tn += Math.max(0, c - w / 4);
+  });
+  document.getElementById('totalCorrect').textContent = tc;
+  document.getElementById('totalWrong').textContent = tw;
+  document.getElementById('totalEmpty').textContent = te;
+  document.getElementById('totalNet').textContent = tn.toFixed(2);
+}
+
+// Tek ders için: Boş'u otomatik hesapla
 function autoFillEmpty() {
   const type = examType.value;
   const subject = examSubject.value;
-  if (!type || !subject || !SUBJECT_TOTALS[type] || !SUBJECT_TOTALS[type][subject]) return;
-  const total = SUBJECT_TOTALS[type][subject];
+  if (!type || !subject || !SUBJECT_DETAILS[type] || !SUBJECT_DETAILS[type][subject]) return;
+  const total = SUBJECT_DETAILS[type][subject].total;
   const c = parseInt(correctInput.value) || 0;
   const w = parseInt(wrongInput.value) || 0;
   const remaining = total - c - w;
@@ -302,7 +456,7 @@ function autoFillEmpty() {
   }
 }
 
-// Net hesaplama + doğrulama
+// Tek ders: Net hesaplama + doğrulama
 function updateNet() {
   const c = parseInt(correctInput.value) || 0;
   const w = parseInt(wrongInput.value) || 0;
@@ -310,23 +464,20 @@ function updateNet() {
   const net = Math.max(0, c - w / 4);
   netDisplay.value = net.toFixed(2);
 
-  // Toplam kontrolü
   const type = examType.value;
   const subject = examSubject.value;
-  if (type && subject && SUBJECT_TOTALS[type] && SUBJECT_TOTALS[type][subject]) {
-    const total = SUBJECT_TOTALS[type][subject];
+  if (type && subject && SUBJECT_DETAILS[type] && SUBJECT_DETAILS[type][subject]) {
+    const total = SUBJECT_DETAILS[type][subject].total;
     const sum = c + w + e;
     if (sum > total) {
       validationWarning.style.display = 'block';
+      validationWarning.className = 'validation-warning';
       validationWarning.textContent = `⚠ Doğru + yanlış + boş (${sum}) toplam sorudan (${total}) fazla olamaz.`;
     } else if (sum < total && (c > 0 || w > 0 || e > 0)) {
       validationWarning.style.display = 'block';
-      validationWarning.textContent = `ℹ ${total - sum} soru eksik. Toplam ${total} olmalı.`;
       validationWarning.className = 'validation-warning validation-info';
+      validationWarning.textContent = `ℹ ${total - sum} soru eksik. Toplam ${total} olmalı.`;
     } else {
-      validationWarning.style.display = 'none';
-    }
-    if (sum === total) {
       validationWarning.style.display = 'none';
     }
   }
@@ -347,26 +498,44 @@ function updateFilterSubjects() {
   const scope = filterScope.value;
   filterSubject.innerHTML = '<option value="">Tüm Dersler/Alanlar</option>';
 
-  if (type && scope && EXAM_STRUCTURE[type] && EXAM_STRUCTURE[type][scope]) {
-    for (const item of EXAM_STRUCTURE[type][scope]) {
-      const opt = document.createElement('option');
-      opt.value = item.name;
-      opt.textContent = item.name;
-      if (item.name === currentFilterSubject) opt.selected = true;
-      filterSubject.appendChild(opt);
+  const options = new Set();
+
+  if (type && EXAM_STRUCTURE[type]) {
+    // Alt Branş seçildiyse: tüm breakdown alt derslerini göster
+    if (scope === 'Alt Branş') {
+      for (const s of Object.keys(EXAM_STRUCTURE[type])) {
+        for (const item of EXAM_STRUCTURE[type][s]) {
+          if (item.breakdown) {
+            for (const sub of item.breakdown) options.add(sub.name);
+          }
+        }
+      }
     }
-  } else if (type && EXAM_STRUCTURE[type]) {
-    const all = new Set();
-    for (const s of Object.keys(EXAM_STRUCTURE[type])) {
-      for (const item of EXAM_STRUCTURE[type][s]) all.add(item.name);
+    // Genel veya Alan seçildiyse: ana kategorileri göster
+    else if (scope && EXAM_STRUCTURE[type][scope]) {
+      for (const item of EXAM_STRUCTURE[type][scope]) {
+        options.add(item.name);
+      }
     }
-    for (const sub of all) {
-      const opt = document.createElement('option');
-      opt.value = sub;
-      opt.textContent = sub;
-      if (sub === currentFilterSubject) opt.selected = true;
-      filterSubject.appendChild(opt);
+    // Scope seçilmediyse: her şeyi göster
+    else {
+      for (const s of Object.keys(EXAM_STRUCTURE[type])) {
+        for (const item of EXAM_STRUCTURE[type][s]) {
+          options.add(item.name);
+          if (item.breakdown) {
+            for (const sub of item.breakdown) options.add(sub.name);
+          }
+        }
+      }
     }
+  }
+
+  for (const sub of options) {
+    const opt = document.createElement('option');
+    opt.value = sub;
+    opt.textContent = sub;
+    if (sub === currentFilterSubject) opt.selected = true;
+    filterSubject.appendChild(opt);
   }
 }
 filterType.addEventListener('change', updateFilterSubjects);

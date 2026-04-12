@@ -278,13 +278,57 @@ app.get('/admin/denemeler', requireAdmin, (req, res) => {
 
 // Admin: deneme ekle
 app.post('/admin/denemeler/add', requireAdmin, (req, res) => {
-  const { exam_date, exam_type, scope, subject, correct, wrong, empty, notes } = req.body;
+  const { exam_date, exam_type, scope, subject, correct, wrong, empty, notes, breakdown } = req.body;
 
   if (!exam_date || !exam_type || !scope || !subject) {
     req.session.error = 'Lütfen tarih, sınav türü, kapsam ve ders/alan alanlarını doldurun.';
     return res.redirect('/admin/denemeler');
   }
 
+  // Breakdown varsa (composite deneme): alt dersleri topla + alt kayıtlar oluştur
+  if (breakdown && typeof breakdown === 'object' && Object.keys(breakdown).length > 0) {
+    let totalC = 0, totalW = 0, totalE = 0;
+    const subItems = [];
+
+    for (const subName of Object.keys(breakdown)) {
+      const b = breakdown[subName];
+      const c = parseInt(b.correct) || 0;
+      const w = parseInt(b.wrong) || 0;
+      const e = parseInt(b.empty) || 0;
+      if (c < 0 || w < 0 || e < 0) {
+        req.session.error = 'Negatif değer girilemez.';
+        return res.redirect('/admin/denemeler');
+      }
+      totalC += c;
+      totalW += w;
+      totalE += e;
+      subItems.push({ name: subName, correct: c, wrong: w, empty: e });
+    }
+
+    // Ana (composite) kayıt
+    db.addExam({
+      exam_date, exam_type, scope, subject,
+      correct: totalC, wrong: totalW, empty: totalE,
+      notes
+    });
+
+    // Alt dersler için ayrı kayıtlar (scope: 'Alt Branş')
+    for (const s of subItems) {
+      db.addExam({
+        exam_date,
+        exam_type,
+        scope: 'Alt Branş',
+        subject: s.name,
+        correct: s.correct, wrong: s.wrong, empty: s.empty,
+        notes: `${subject} denemesi içinden`
+      });
+    }
+
+    req.session.success = `${exam_type} ${subject} denemesi eklendi (${subItems.length} alt ders ile).`;
+    return res.redirect('/admin/denemeler');
+  }
+
+  // Normal (tek ders) deneme
   const c = parseInt(correct) || 0;
   const w = parseInt(wrong) || 0;
   const e = parseInt(empty) || 0;
