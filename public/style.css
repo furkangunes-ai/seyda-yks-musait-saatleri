@@ -1251,6 +1251,91 @@ footer {
   line-height: 1.6;
 }
 
+/* Max net info */
+.max-info {
+  background: #e8f5e9;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 4px solid #2e7d32;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
+
+.max-info strong {
+  color: #1b5e20;
+}
+
+.max-info small {
+  display: inline-block;
+  margin-left: 8px;
+  color: #555;
+  background: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.max-info-unknown {
+  background: #fff3e0;
+  border-left-color: #f77f00;
+}
+
+.max-info-unknown strong {
+  color: #e65100;
+}
+
+/* Primary prediction note */
+.pred-note {
+  font-size: 0.8rem;
+  color: #555;
+  margin-top: 10px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* Secondary (raw linear) */
+.pred-secondary {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  border: 1px dashed #ccc;
+}
+
+.pred-sec-label {
+  display: block;
+  font-size: 0.82rem;
+  color: #666;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pred-sec-value {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 6px;
+}
+
+.pred-secondary small {
+  display: block;
+  font-size: 0.78rem;
+  color: #777;
+  line-height: 1.4;
+}
+
+.cap-badge {
+  display: inline-block;
+  background: #c62828;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
 /* Detaylı İstatistikler */
 .stats-grid {
   display: grid;

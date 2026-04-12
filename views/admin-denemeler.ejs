@@ -723,6 +723,66 @@ updateFilterSubjects();
     return { slope, intercept, r2, se, n, meanX };
   }
 
+  // ---------- Max Net Lookup ----------
+  // Filtreye göre o dersin maksimum yapılabilecek net sayısını döner
+  // (AYT Fizik = 14, TYT Fizik = 7, AYT Fen = 40 vb.)
+  function getMaxNet(examType, subject) {
+    if (!examType || !subject) return null;
+    const struct = EXAM_STRUCTURE[examType];
+    if (!struct) return null;
+    for (const scope of Object.keys(struct)) {
+      for (const item of struct[scope]) {
+        if (item.name === subject) return item.total;
+        if (item.breakdown) {
+          const sub = item.breakdown.find(b => b.name === subject);
+          if (sub) return sub.total;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ---------- Lojistik (Sigmoid) Regresyon ----------
+  // Net değerini [0, maxNet] aralığına sıkıştırıp logit dönüşümü uygulayarak
+  // linear regresyon yapar. Tahmin doğal olarak sınırlar içinde kalır.
+  // y → p = y/maxNet → logit(p) → regression → back-transform
+  function logisticRegression(points, maxNet) {
+    if (!maxNet || points.length < 2) return null;
+    const eps = 0.001;
+    const transformed = points.map(p => {
+      const ratio = Math.max(eps, Math.min(1 - eps, p.y / maxNet));
+      return { x: p.x, y: Math.log(ratio / (1 - ratio)) };
+    });
+    // Değişim yok mu? (yatay çizgi) → lojistik anlamsız
+    const yVals = transformed.map(p => p.y);
+    if (Math.max(...yVals) - Math.min(...yVals) < 0.001) return null;
+
+    const linReg = linearRegression(transformed);
+    if (!linReg) return null;
+
+    return {
+      slope: linReg.slope,
+      intercept: linReg.intercept,
+      r2: linReg.r2,
+      se: linReg.se,
+      n: linReg.n,
+      maxNet,
+      predict: function(x) {
+        const logit = linReg.slope * x + linReg.intercept;
+        return maxNet / (1 + Math.exp(-logit));
+      },
+      predictInterval: function(x, z = 1.96) {
+        const logitPred = linReg.slope * x + linReg.intercept;
+        const low = logitPred - z * linReg.se;
+        const high = logitPred + z * linReg.se;
+        return {
+          low: maxNet / (1 + Math.exp(-low)),
+          high: maxNet / (1 + Math.exp(-high))
+        };
+      }
+    };
+  }
+
   // Günlük verileri regresyon için hazırla (baseDate'den gün sayısı = x, net = y)
   function prepareRegressionPoints(items, baseDate) {
     return items.map(it => ({
@@ -746,37 +806,91 @@ updateFilterSubjects();
     const sortedData = [...FILTERED_RAW].sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
     const baseDate = new Date(sortedData[0].exam_date);
     const points = prepareRegressionPoints(sortedData, baseDate);
-    const reg = linearRegression(points);
+    const linReg = linearRegression(points);
 
-    if (!reg) {
+    if (!linReg) {
       panel.innerHTML = `<div class="analysis-card"><p class="empty-msg">Tahmin hesaplanamadı (tarihler çok yakın veya sabit).</p></div>`;
       return;
     }
 
+    // Max net belirle
+    const maxNet = getMaxNet(CURRENT_FILTER.exam_type, CURRENT_FILTER.subject);
+    const logReg = maxNet ? logisticRegression(points, maxNet) : null;
+
     const daysToYks = daysBetween(baseDate, YKS_DATE);
-    const predicted = reg.slope * daysToYks + reg.intercept;
-    const ciMargin = 1.96 * reg.se;
-    const predictionLow = Math.max(0, predicted - ciMargin);
-    const predictionHigh = predicted + ciMargin;
+    const today = new Date();
+    const daysUntilExam = Math.max(0, daysBetween(today, YKS_DATE));
+
+    // === BİRİNCİL TAHMİN (Lojistik eğer max biliniyorsa, yoksa clamped linear) ===
+    let primaryValue, primaryLow, primaryHigh, primaryLabel, primaryNote;
+
+    if (logReg) {
+      primaryValue = logReg.predict(daysToYks);
+      const ci = logReg.predictInterval(daysToYks);
+      primaryLow = ci.low;
+      primaryHigh = ci.high;
+      primaryLabel = '🎯 Gerçekçi Tahmin (Lojistik / Sigmoid)';
+      primaryNote = `Değer doğal olarak [0, ${maxNet}] aralığında kalır - maksimuma yaklaştıkça büyüme yavaşlar.`;
+    } else if (maxNet) {
+      const rawPred = linReg.slope * daysToYks + linReg.intercept;
+      primaryValue = Math.max(0, Math.min(maxNet, rawPred));
+      primaryLow = Math.max(0, rawPred - 1.96 * linReg.se);
+      primaryHigh = Math.min(maxNet, rawPred + 1.96 * linReg.se);
+      primaryLabel = '🎯 Sınırlandırılmış Linear Tahmin';
+      primaryNote = `Lojistik uygulanamadı; linear sonucu [0, ${maxNet}] aralığına kısaltıldı.`;
+    } else {
+      const rawPred = linReg.slope * daysToYks + linReg.intercept;
+      primaryValue = Math.max(0, rawPred);
+      primaryLow = Math.max(0, rawPred - 1.96 * linReg.se);
+      primaryHigh = rawPred + 1.96 * linReg.se;
+      primaryLabel = '🎯 Linear Regresyon Tahmini';
+      primaryNote = 'Bir ders filtrelenirse (örn: AYT Fizik) maksimum limit uygulanır.';
+    }
+
+    // === HAM LINEAR (referans için) ===
+    const rawLinear = linReg.slope * daysToYks + linReg.intercept;
+    const linearCapped = maxNet && (rawLinear > maxNet || rawLinear < 0);
+    const rawLinearDisplay = linearCapped
+      ? `<em>${rawLinear.toFixed(2)} net</em> <span class="cap-badge">⚠ Fiziksel limit (${maxNet}) aşıldı</span>`
+      : `${rawLinear.toFixed(2)} net`;
 
     // Moving averages
     const nets = sortedData.map(d => d.net);
     const ma5 = nets.length >= 5 ? (nets.slice(-5).reduce((s, n) => s + n, 0) / 5).toFixed(2) : null;
     const ma10 = nets.length >= 10 ? (nets.slice(-10).reduce((s, n) => s + n, 0) / 10).toFixed(2) : null;
 
-    // Exponential smoothing (α = 0.3, son ağırlıklı)
+    // Exponential smoothing + clamp
     let expSmooth = nets[0];
     for (let i = 1; i < nets.length; i++) expSmooth = 0.3 * nets[i] + 0.7 * expSmooth;
+    const expClamped = maxNet ? Math.max(0, Math.min(maxNet, expSmooth)) : Math.max(0, expSmooth);
 
-    const today = new Date();
-    const daysUntilExam = Math.max(0, daysBetween(today, YKS_DATE));
-    const trend = reg.slope >= 0 ? 'artan' : 'azalan';
-    const trendColor = reg.slope >= 0 ? '#2e7d32' : '#c62828';
+    // Hız yorumu (lojistik için: birincil ile bugünkü tahmin arası ortalama günlük değişim)
+    let dailyRate, dailyRateText;
+    if (logReg && daysUntilExam > 0) {
+      const daysFromStartToToday = daysBetween(baseDate, today);
+      const todayPred = logReg.predict(Math.max(0, daysFromStartToToday));
+      dailyRate = daysUntilExam > 0 ? (primaryValue - todayPred) / daysUntilExam : 0;
+      dailyRateText = `${dailyRate >= 0 ? '+' : ''}${dailyRate.toFixed(3)} net/gün (bu tempo korunursa)`;
+    } else {
+      dailyRate = linReg.slope;
+      dailyRateText = `${dailyRate >= 0 ? '+' : ''}${dailyRate.toFixed(3)} net/gün`;
+    }
+    const trendColor = dailyRate >= 0 ? '#2e7d32' : '#c62828';
 
     // R² kalite etiketi
     let qualityLabel = 'Düşük güven', qualityColor = '#c62828';
-    if (reg.r2 >= 0.7) { qualityLabel = 'Yüksek güven'; qualityColor = '#2e7d32'; }
-    else if (reg.r2 >= 0.4) { qualityLabel = 'Orta güven'; qualityColor = '#f77f00'; }
+    if (linReg.r2 >= 0.7) { qualityLabel = 'Yüksek güven'; qualityColor = '#2e7d32'; }
+    else if (linReg.r2 >= 0.4) { qualityLabel = 'Orta güven'; qualityColor = '#f77f00'; }
+
+    const maxInfoHTML = maxNet
+      ? `<div class="max-info">
+           <strong>📏 Maksimum Net Limiti:</strong> ${maxNet}
+           <small>${CURRENT_FILTER.exam_type} ${CURRENT_FILTER.subject}</small>
+         </div>`
+      : `<div class="max-info max-info-unknown">
+           <strong>⚠ Max limit belirlenemedi.</strong>
+           <small>Lojistik model için <em>sınav türü + ders</em> filtrelenmeli.</small>
+         </div>`;
 
     panel.innerHTML = `
       <div class="analysis-card prediction-card">
@@ -785,41 +899,49 @@ updateFilterSubjects();
           <span class="days-left">Sınava <strong>${daysUntilExam}</strong> gün kaldı</span>
         </div>
 
+        ${maxInfoHTML}
+
         <div class="pred-main">
           <div class="pred-primary">
-            <span class="pred-label">Linear Regresyon Tahmini</span>
-            <span class="pred-value">${predicted.toFixed(2)} net</span>
-            <span class="pred-range">Güven aralığı: <strong>${predictionLow.toFixed(2)} — ${predictionHigh.toFixed(2)}</strong></span>
-            <span class="pred-quality" style="background:${qualityColor}">R² = ${reg.r2.toFixed(3)} · ${qualityLabel}</span>
+            <span class="pred-label">${primaryLabel}</span>
+            <span class="pred-value">${primaryValue.toFixed(2)} net${maxNet ? ' / ' + maxNet : ''}</span>
+            <span class="pred-range">Olası aralık: <strong>${primaryLow.toFixed(2)} — ${primaryHigh.toFixed(2)}</strong></span>
+            <span class="pred-quality" style="background:${qualityColor}">R² = ${linReg.r2.toFixed(3)} · ${qualityLabel}</span>
+            <p class="pred-note">${primaryNote}</p>
           </div>
         </div>
+
+        ${maxNet ? `
+        <div class="pred-secondary">
+          <span class="pred-sec-label">📏 Ham Linear Regresyon (Sınırsız, referans):</span>
+          <span class="pred-sec-value">${rawLinearDisplay}</span>
+          <small>Linear regresyon düz çizgisel bir projeksiyon yapar — tempoyu koruma varsayımı. Fiziksel max aşılırsa
+          bu sayı <strong>olası değil</strong>, gerçekçi tahmin için yukarıdaki lojistik değeri kullanın.</small>
+        </div>` : ''}
 
         <div class="pred-details">
           <div class="pred-detail-item">
             <span class="pd-label">Günlük değişim hızı</span>
-            <span class="pd-value" style="color:${trendColor}">${reg.slope >= 0 ? '+' : ''}${reg.slope.toFixed(3)} net/gün (${trend})</span>
-          </div>
-          <div class="pred-detail-item">
-            <span class="pd-label">Haftalık değişim</span>
-            <span class="pd-value" style="color:${trendColor}">${reg.slope >= 0 ? '+' : ''}${(reg.slope * 7).toFixed(2)} net/hafta</span>
+            <span class="pd-value" style="color:${trendColor}">${dailyRateText}</span>
           </div>
           ${ma5 ? `<div class="pred-detail-item"><span class="pd-label">Son 5 Deneme Ortalaması</span><span class="pd-value">${ma5} net</span></div>` : ''}
           ${ma10 ? `<div class="pred-detail-item"><span class="pd-label">Son 10 Deneme Ortalaması</span><span class="pd-value">${ma10} net</span></div>` : ''}
           <div class="pred-detail-item">
             <span class="pd-label">Üstel Düzeltilmiş Tahmin</span>
-            <span class="pd-value">${expSmooth.toFixed(2)} net</span>
+            <span class="pd-value">${expClamped.toFixed(2)} net</span>
           </div>
           <div class="pred-detail-item">
             <span class="pd-label">Kullanılan veri sayısı</span>
-            <span class="pd-value">${reg.n} deneme</span>
+            <span class="pd-value">${linReg.n} deneme</span>
           </div>
         </div>
 
         <div class="analysis-disclaimer">
-          <strong>ℹ Yorumlama:</strong> Bu tahminler geçmiş eğilime göre matematiksel projeksiyondur.
-          Gerçek YKS sonucu çalışma temposu, stres ve sınav formatına göre değişebilir.
-          R² (<em>0-1 arası</em>) ne kadar 1'e yakınsa tahminin güvenilirliği o kadar yüksektir.
-          ${reg.n < 5 ? '<br><strong>⚠</strong> Az veri nedeniyle güvenilirlik düşük olabilir; daha çok deneme ekledikçe tahmin netleşir.' : ''}
+          <strong>ℹ Modeller nasıl çalışır?</strong>
+          <br>• <strong>Lojistik (Sigmoid):</strong> Net değerinin matematiksel olarak imkansız sınırları (0 ve max) aşmasına izin vermez. Maksimuma yaklaştıkça doğal olarak yavaşlar, öğrenme eğrilerine daha uygun.
+          <br>• <strong>Linear:</strong> Düz bir çizgi uzatır, sınır gözetmez. Referans için yararlıdır ama fiziksel limiti aşabilir.
+          <br>• <strong>R²:</strong> Veriye uyum skoru (0-1). 1'e yakın = yüksek güvenilirlik.
+          ${linReg.n < 5 ? '<br><strong>⚠</strong> <5 deneme ile güvenilirlik sınırlı; daha çok deneme ekledikçe tahmin netleşir.' : ''}
         </div>
       </div>
     `;
