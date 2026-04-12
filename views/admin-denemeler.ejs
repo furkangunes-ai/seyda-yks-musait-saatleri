@@ -163,7 +163,10 @@
       <div class="chart-container">
         <canvas id="netChart"></canvas>
       </div>
-      <p class="chart-hint">ℹ Aynı günün birden fazla denemesi tek noktada gösterilir (ortalama net). Nokta ne kadar büyükse o gün o kadar çok deneme çözülmüş demektir. Noktanın üzerine gelince o günkü tüm denemeler ayrı ayrı listelenir. Composite deneme (AYT Fen, Sayısal Tam vb.) filtrelendiğinde alt derslerin seyri de aşağıda kesik çizgilerle görünür.</p>
+      <p class="chart-hint">ℹ Aynı günün birden fazla denemesi tek noktada gösterilir (ortalama net). Nokta ne kadar büyükse o gün o kadar çok deneme çözülmüş demektir. Noktanın üzerine gelince o günkü tüm denemeler ayrı ayrı listelenir. Composite deneme (AYT Fen, Sayısal Tam vb.) filtrelendiğinde alt derslerin seyri de aşağıda kesik çizgilerle görünür. 👉 <strong>Bir noktaya tıklarsanız</strong> o günkü denemelerin detayı (ders, net, not) açılır.</p>
+
+      <!-- Seçilen günün detayları buraya render edilir -->
+      <div id="dayDetailsPanel" class="day-details-panel hidden"></div>
       <div class="chart-summary">
         <% const nets = filtered.map(f => f.net); %>
         <% const avg = (nets.reduce((a,b) => a+b, 0) / nets.length).toFixed(2); %>
@@ -714,13 +717,21 @@ updateFilterSubjects();
   }
 
   const ctx = document.getElementById('netChart').getContext('2d');
-  new Chart(ctx, {
+  const netChart = new Chart(ctx, {
     type: 'line',
     data: { labels: dates, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      onHover: (event, els) => {
+        event.native.target.style.cursor = els.length ? 'pointer' : 'default';
+      },
+      onClick: (event, els) => {
+        if (els.length === 0) return;
+        const idx = els[0].index;
+        if (idx != null && dates[idx]) showDayDetails(dates[idx]);
+      },
       plugins: {
         legend: {
           display: breakdownSubjects.length > 0,
@@ -751,6 +762,9 @@ updateFilterSubjects();
               }
               const it = d.items[0];
               return `  ${it.subject}${it.notes ? ` (${it.notes})` : ''}`;
+            },
+            footer: function() {
+              return '\n👆 Detaylar için tıklayın';
             }
           }
         }
@@ -761,6 +775,111 @@ updateFilterSubjects();
       }
     }
   });
+
+  // ---------- Seçilen Günün Detaylarını Göster ----------
+  function scopeBadgeClass(scope) {
+    if (scope === 'Genel') return 'scope-genel';
+    if (scope === 'Alan') return 'scope-alan';
+    if (scope === 'Tekil Ders') return 'scope-tekil';
+    if (scope === 'Alt Branş') return 'scope-alt';
+    return '';
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+  }
+
+  function showDayDetails(date) {
+    const panel = document.getElementById('dayDetailsPanel');
+
+    // Bu tarihte filtrelenmiş tüm kayıtları al (ana kayıtlar)
+    const dayRecords = FILTERED_RAW.filter(f => f.exam_date === date);
+    if (dayRecords.length === 0) {
+      panel.classList.add('hidden');
+      return;
+    }
+
+    let html = `
+      <div class="analysis-card day-details-card">
+        <div class="day-details-header">
+          <h4>📅 ${date} — ${dayRecords.length} Deneme</h4>
+          <button class="day-close-btn" onclick="document.getElementById('dayDetailsPanel').classList.add('hidden')" title="Kapat">✕</button>
+        </div>`;
+
+    dayRecords.forEach((rec, idx) => {
+      const full = ALL_EXAMS.find(e => e.id === rec.id) || rec;
+      const badgeCls = scopeBadgeClass(rec.scope);
+
+      // Bu composite parent ise alt ders kayıtlarını bul
+      let breakdownSubs = [];
+      if (rec.scope === 'Alan' || rec.scope === 'Genel') {
+        const bdSubjects = getBreakdownSubjects(rec.exam_type, rec.subject);
+        breakdownSubs = ALL_EXAMS.filter(e =>
+          e.exam_date === date &&
+          e.scope === 'Alt Branş' &&
+          e.exam_type === rec.exam_type &&
+          bdSubjects.includes(e.subject)
+        );
+      }
+
+      const maxN = getMaxNet(rec.exam_type, rec.subject);
+      const totalHint = maxN ? ` / ${maxN}` : '';
+
+      html += `
+        <div class="deneme-detail-card">
+          <div class="dd-header">
+            <span class="exam-badge exam-badge-${rec.exam_type.toLowerCase()}">${rec.exam_type}</span>
+            <strong class="dd-subject">${escapeHtml(rec.subject)}</strong>
+            <span class="scope-badge ${badgeCls}">${rec.scope}</span>
+            ${full.notes ? `<span class="dd-notes">📝 ${escapeHtml(full.notes)}</span>` : ''}
+          </div>
+          <div class="dd-totals">
+            <span class="dd-stat"><span class="dd-lbl">Doğru</span><strong class="dd-val dd-correct">${rec.correct}</strong></span>
+            <span class="dd-stat"><span class="dd-lbl">Yanlış</span><strong class="dd-val dd-wrong">${rec.wrong}</strong></span>
+            <span class="dd-stat"><span class="dd-lbl">Boş</span><strong class="dd-val">${rec.empty}</strong></span>
+            <span class="dd-stat dd-net-box"><span class="dd-lbl">Net</span><strong class="dd-val dd-net">${rec.net.toFixed(2)}${totalHint}</strong></span>
+          </div>`;
+
+      if (breakdownSubs.length > 0) {
+        html += `
+          <div class="dd-breakdown-wrap">
+            <h5 class="dd-breakdown-title">Alt Ders Dağılımı:</h5>
+            <table class="dd-breakdown">
+              <thead>
+                <tr>
+                  <th>Ders</th>
+                  <th>Doğru</th>
+                  <th>Yanlış</th>
+                  <th>Boş</th>
+                  <th>Net</th>
+                </tr>
+              </thead>
+              <tbody>`;
+        breakdownSubs.forEach((sub, si) => {
+          const color = getColor(sub.subject, si);
+          html += `
+            <tr>
+              <td><span class="dd-subj-dot" style="background:${color}"></span>${escapeHtml(sub.subject)}</td>
+              <td>${sub.correct}</td>
+              <td>${sub.wrong}</td>
+              <td>${sub.empty}</td>
+              <td><strong class="dd-net">${sub.net.toFixed(2)}</strong></td>
+            </tr>`;
+        });
+        html += `
+              </tbody>
+            </table>
+          </div>`;
+      }
+      html += `</div>`;
+    });
+
+    html += `</div>`;
+    panel.innerHTML = html;
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 
   // ---------- Linear Regresyon ----------
   function linearRegression(points) {

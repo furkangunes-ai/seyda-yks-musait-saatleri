@@ -1452,6 +1452,183 @@ footer {
 }
 
 /* ==========================================
+   GÜN DETAY PANELİ (Grafikte tıklayınca açılır)
+   ========================================== */
+.day-details-panel {
+  margin-top: 16px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.day-details-panel.hidden {
+  display: none;
+}
+
+.day-details-card {
+  background: white;
+  border: 2px solid #4361ee;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.day-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.day-details-header h4 {
+  margin: 0;
+  color: #1a1a2e;
+  font-size: 1.05rem;
+}
+
+.day-close-btn {
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  color: #666;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.day-close-btn:hover {
+  background: #ffe0e0;
+  border-color: #c62828;
+  color: #c62828;
+}
+
+.deneme-detail-card {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border-left: 4px solid #4361ee;
+}
+
+.deneme-detail-card:last-child {
+  margin-bottom: 0;
+}
+
+.dd-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.dd-subject {
+  color: #1a1a2e;
+  font-size: 1rem;
+}
+
+.dd-notes {
+  color: #666;
+  font-size: 0.82rem;
+  font-style: italic;
+  background: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.dd-totals {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.dd-stat {
+  flex: 1;
+  min-width: 80px;
+  background: white;
+  padding: 8px 10px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.dd-lbl {
+  font-size: 0.7rem;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.dd-val {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.dd-correct { color: #2e7d32; }
+.dd-wrong { color: #c62828; }
+.dd-val.dd-net { color: #1565c0; font-size: 1.3rem; }
+
+.dd-net-box {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+}
+
+.dd-breakdown-wrap {
+  margin-top: 10px;
+}
+
+.dd-breakdown-title {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 8px 0 6px;
+  font-weight: 600;
+}
+
+.dd-breakdown {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dd-breakdown th {
+  background: #1a1a2e;
+  color: white;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.dd-breakdown td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dd-breakdown tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dd-breakdown .dd-net {
+  color: #1565c0;
+  font-size: 0.95rem;
+}
+
+.dd-subj-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ==========================================
    MOBİL UYUMLULUK
    ========================================== */
 
