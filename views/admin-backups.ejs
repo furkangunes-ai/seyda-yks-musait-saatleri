@@ -1,0 +1,134 @@
+<%- include('partials/head', { title: "Yedekler - Şeyda" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>💾 Yedekleme ve Dışa Aktarma</h1>
+        <p class="subtitle">Verilerinin güvenliği için yedekler. Her gün otomatik yedek alınır, istediğin zaman indirebilirsin.</p>
+      </div>
+      <div class="nav-buttons">
+        <a href="/admin" class="btn btn-secondary">← Ders Programı</a>
+        <a href="/admin/denemeler" class="btn btn-secondary">Denemeler</a>
+        <form action="/admin/logout" method="POST" style="display:inline">
+          <button type="submit" class="btn btn-secondary">Çıkış</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <!-- Yedek istatistikleri -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-number"><%= stats.count %></span>
+      <span class="stat-label">Toplam Yedek</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">
+        <% const mb = (stats.totalSize / 1024).toFixed(1); %>
+        <%= mb %> KB
+      </span>
+      <span class="stat-label">Toplam Boyut</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number" style="font-size:0.9rem">
+        <%= stats.newestDate ? stats.newestDate.split('T')[0] : '—' %>
+      </span>
+      <span class="stat-label">Son Yedek</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number" style="font-size:0.9rem">
+        <%= stats.oldestDate ? stats.oldestDate.split('T')[0] : '—' %>
+      </span>
+      <span class="stat-label">En Eski Yedek</span>
+    </div>
+  </div>
+
+  <!-- Bilgi kartı -->
+  <div class="section-card info-card">
+    <h2>Nasıl Çalışır?</h2>
+    <ul class="info-list">
+      <li>✅ <strong>Otomatik günlük yedek:</strong> Her gün admin paneline ilk giriş yaptığında o günün yedeği otomatik oluşturulur.</li>
+      <li>✅ <strong>Manuel yedek:</strong> İstediğin an "Şimdi Yedekle" butonuyla ek yedek alabilirsin.</li>
+      <li>✅ <strong>Kalıcı depolama:</strong> Yedekler Railway volume'unda (<code><%= stats.backupDir %></code>) tutulur, deploy'larda silinmez.</li>
+      <li>✅ <strong>İndir:</strong> Her yedeği JSON olarak indirebilirsin — bilgisayarına arşiv olarak kaydet.</li>
+      <li>✅ <strong>Otomatik temizlik:</strong> 60 günden eski yedekler otomatik silinir (disk yormamak için).</li>
+      <li>ℹ <strong>İçerik:</strong> Öğretmenler, kategoriler, ders programı slotları, tüm denemeler ve meta veriler.</li>
+    </ul>
+  </div>
+
+  <!-- Aksiyonlar -->
+  <div class="section-card">
+    <h2>Yedek Al / İndir</h2>
+    <div class="backup-actions">
+      <form action="/admin/backups/create" method="POST" style="display:inline">
+        <button type="submit" class="btn btn-primary btn-large">
+          💾 Şimdi Yedekle
+          <small>Anlık bir yedek dosyası oluştur</small>
+        </button>
+      </form>
+      <a href="/admin/backups/export-now" class="btn btn-secondary btn-large">
+        📥 Anlık Veriyi İndir
+        <small>Kaydet + bilgisayara indir</small>
+      </a>
+    </div>
+  </div>
+
+  <!-- Yedekler listesi -->
+  <div class="section-card">
+    <h2>Mevcut Yedekler (<%= backups.length %>)</h2>
+    <p class="section-desc">En yeniden en eskiye sıralı. Her yedeğin yanındaki <strong>İndir</strong> butonuyla JSON dosyasını bilgisayarına alabilirsin.</p>
+
+    <% if (backups.length > 0) { %>
+      <div class="backup-list">
+        <% for (const b of backups) { %>
+          <div class="backup-item">
+            <div class="backup-main">
+              <div class="backup-name">
+                <span class="backup-icon">📄</span>
+                <strong><%= b.filename %></strong>
+              </div>
+              <div class="backup-meta">
+                <span class="backup-size">
+                  <%= (b.size / 1024).toFixed(1) %> KB
+                </span>
+                <span class="backup-date">
+                  <%= new Date(b.created_at).toLocaleString('tr-TR') %>
+                </span>
+                <% if (b.counts) { %>
+                  <span class="backup-counts">
+                    📝 <%= b.counts.exam_results %> deneme ·
+                    👤 <%= b.counts.teachers %> öğretmen ·
+                    📅 <%= b.counts.time_slots %> slot
+                  </span>
+                <% } %>
+              </div>
+            </div>
+            <div class="backup-actions-inline">
+              <a href="/admin/backups/download/<%= encodeURIComponent(b.filename) %>" class="btn btn-small btn-primary" download>
+                📥 İndir
+              </a>
+              <form action="/admin/backups/delete" method="POST" class="inline-form">
+                <input type="hidden" name="filename" value="<%= b.filename %>">
+                <button type="submit" class="btn btn-small btn-danger" onclick="return confirm('Bu yedeği silmek istediğine emin misin?\n\n<%= b.filename %>')">
+                  🗑 Sil
+                </button>
+              </form>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    <% } else { %>
+      <p class="empty-msg">Henüz yedek yok. "Şimdi Yedekle" butonuyla ilk yedeğini oluştur.</p>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

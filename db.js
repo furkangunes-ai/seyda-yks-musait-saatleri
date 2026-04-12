@@ -457,6 +457,20 @@ function getExamStats() {
   };
 }
 
+// ==========================================
+// YEDEKLEME İÇİN VERİ DIŞA AKTARMA
+// ==========================================
+
+function exportAllData() {
+  return {
+    teachers: db.prepare('SELECT * FROM teachers').all(),
+    categories: db.prepare('SELECT * FROM categories').all(),
+    time_slots: db.prepare('SELECT * FROM time_slots').all(),
+    meta: db.prepare('SELECT * FROM meta').all(),
+    exam_results: db.prepare('SELECT * FROM exam_results').all()
+  };
+}
+
 module.exports = {
   seedSlots,
   seedCategories,
@@ -480,6 +494,7 @@ module.exports = {
   getExamsByFilter,
   deleteExam,
   getExamStats,
+  exportAllData,
   EXAM_STRUCTURE,
   DAYS,
   DAYS_DISPLAY,

@@ -4,6 +4,7 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const db = require('./db');
+const backup = require('./backup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +15,14 @@ db.seedCategories();
 
 // Başlangıçta geçmiş günleri temizle
 db.autoResetPastDays();
+
+// Başlangıçta bugünkü yedek yoksa oluştur + eski yedekleri temizle
+try {
+  backup.ensureTodayBackup();
+  backup.cleanOldBackups(60);
+} catch (e) {
+  console.error('Backup başlangıç hatası:', e);
+}
 
 // Middleware
 app.set('view engine', 'ejs');
@@ -355,6 +364,81 @@ app.post('/admin/denemeler/delete', requireAdmin, (req, res) => {
     req.session.error = 'Deneme bulunamadı.';
   }
   res.redirect('/admin/denemeler');
+});
+
+// ==========================================
+// YEDEKLEME ROTALARI
+// ==========================================
+
+// Admin: yedekler sayfası
+app.get('/admin/backups', requireAdmin, (req, res) => {
+  // Admin sayfası yüklenirken günlük yedek yoksa oluştur
+  try { backup.ensureTodayBackup(); } catch (e) { console.error(e); }
+
+  const backups = backup.listBackups();
+  const stats = backup.getBackupStats();
+  res.render('admin-backups', { backups, stats });
+});
+
+// Admin: manuel yedek oluştur
+app.post('/admin/backups/create', requireAdmin, (req, res) => {
+  try {
+    const info = backup.createBackup(true);
+    req.session.success = `Yedek oluşturuldu: ${info.filename} (${info.counts.exam_results} deneme, ${info.counts.teachers} öğretmen).`;
+  } catch (e) {
+    console.error(e);
+    req.session.error = 'Yedek oluşturulurken hata: ' + e.message;
+  }
+  res.redirect('/admin/backups');
+});
+
+// Admin: yedeği indir
+app.get('/admin/backups/download/:filename', requireAdmin, (req, res) => {
+  try {
+    const content = backup.getBackupContent(req.params.filename);
+    if (!content) return res.status(404).send('Yedek bulunamadı.');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${req.params.filename}"`);
+    res.send(content);
+  } catch (e) {
+    res.status(400).send('Geçersiz dosya: ' + e.message);
+  }
+});
+
+// Admin: yedek sil
+app.post('/admin/backups/delete', requireAdmin, (req, res) => {
+  try {
+    if (backup.deleteBackup(req.body.filename)) {
+      req.session.success = 'Yedek silindi.';
+    } else {
+      req.session.error = 'Yedek bulunamadı.';
+    }
+  } catch (e) {
+    req.session.error = 'Silme hatası: ' + e.message;
+  }
+  res.redirect('/admin/backups');
+});
+
+// Admin: anlık DB'yi JSON olarak indir (yedek kaydetmeden)
+app.get('/admin/backups/export-now', requireAdmin, (req, res) => {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const data = db.exportAllData();
+  const exportObj = {
+    created_at: now.toISOString(),
+    version: '1.0',
+    record_counts: {
+      teachers: data.teachers.length,
+      categories: data.categories.length,
+      time_slots: data.time_slots.length,
+      exam_results: data.exam_results.length,
+      meta: data.meta.length
+    },
+    data
+  };
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="anlik-export-${dateStr}.json"`);
+  res.send(JSON.stringify(exportObj, null, 2));
 });
 
 // Admin çıkış
