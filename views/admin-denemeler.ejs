@@ -67,27 +67,30 @@
           <select name="subject" id="examSubject" required disabled>
             <option value="">-- Önce kapsam seç --</option>
           </select>
+          <small id="totalInfo" class="total-info"></small>
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
           <label>Doğru</label>
-          <input type="number" name="correct" min="0" placeholder="0" required>
+          <input type="number" name="correct" id="correctInput" min="0" placeholder="0" required>
         </div>
         <div class="form-group">
           <label>Yanlış</label>
-          <input type="number" name="wrong" min="0" placeholder="0" required>
+          <input type="number" name="wrong" id="wrongInput" min="0" placeholder="0" required>
         </div>
         <div class="form-group">
-          <label>Boş</label>
-          <input type="number" name="empty" min="0" placeholder="0" required>
+          <label>Boş (otomatik)</label>
+          <input type="number" name="empty" id="emptyInput" min="0" placeholder="0" required>
         </div>
         <div class="form-group">
           <label>Net (otomatik)</label>
           <input type="text" id="netDisplay" readonly placeholder="—" class="readonly-input">
         </div>
       </div>
+
+      <div id="validationWarning" class="validation-warning" style="display:none"></div>
 
       <div class="form-row">
         <div class="form-group form-group-full">
@@ -116,8 +119,7 @@
       <select name="scope" id="filterScope">
         <option value="">Tüm Kapsamlar</option>
         <option value="Genel" <%= filter.scope === 'Genel' ? 'selected' : '' %>>Genel (Tam Deneme)</option>
-        <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan (Branş)</option>
-        <option value="Ders" <%= filter.scope === 'Ders' ? 'selected' : '' %>>Tek Ders</option>
+        <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan / Branş</option>
       </select>
       <select name="subject" id="filterSubject">
         <option value="">Tüm Dersler/Alanlar</option>
@@ -216,20 +218,38 @@
 // Sınav yapısı - hiyerarşik dropdown'lar için
 const EXAM_STRUCTURE = <%- JSON.stringify(EXAM_STRUCTURE) %>;
 
+// Ders adından toplam soru sayısına hızlı erişim için map
+const SUBJECT_TOTALS = {};
+for (const type of Object.keys(EXAM_STRUCTURE)) {
+  SUBJECT_TOTALS[type] = {};
+  for (const scope of Object.keys(EXAM_STRUCTURE[type])) {
+    for (const item of EXAM_STRUCTURE[type][scope]) {
+      SUBJECT_TOTALS[type][item.name] = item.total;
+    }
+  }
+}
+
 // Form için cascading dropdown
 const examType = document.getElementById('examType');
 const examScope = document.getElementById('examScope');
 const examSubject = document.getElementById('examSubject');
+const totalInfo = document.getElementById('totalInfo');
+const correctInput = document.getElementById('correctInput');
+const wrongInput = document.getElementById('wrongInput');
+const emptyInput = document.getElementById('emptyInput');
+const netDisplay = document.getElementById('netDisplay');
+const validationWarning = document.getElementById('validationWarning');
 
 examType.addEventListener('change', function() {
   examScope.disabled = !this.value;
   examScope.innerHTML = '<option value="">-- Seç --</option>';
   examSubject.disabled = true;
   examSubject.innerHTML = '<option value="">-- Önce kapsam seç --</option>';
+  totalInfo.textContent = '';
 
   if (this.value && EXAM_STRUCTURE[this.value]) {
     const scopes = Object.keys(EXAM_STRUCTURE[this.value]);
-    const scopeLabels = { Genel: 'Genel (Tam Deneme)', Alan: 'Alan (Branş)', Ders: 'Tek Ders' };
+    const scopeLabels = { Genel: 'Genel (Tam Deneme)', Alan: 'Alan / Branş' };
     for (const s of scopes) {
       const opt = document.createElement('option');
       opt.value = s;
@@ -242,27 +262,79 @@ examType.addEventListener('change', function() {
 examScope.addEventListener('change', function() {
   examSubject.disabled = !this.value;
   examSubject.innerHTML = '<option value="">-- Seç --</option>';
+  totalInfo.textContent = '';
 
   const type = examType.value;
   if (type && this.value && EXAM_STRUCTURE[type][this.value]) {
-    for (const sub of EXAM_STRUCTURE[type][this.value]) {
+    for (const item of EXAM_STRUCTURE[type][this.value]) {
       const opt = document.createElement('option');
-      opt.value = sub;
-      opt.textContent = sub;
+      opt.value = item.name;
+      opt.textContent = `${item.name} (${item.total} soru)`;
+      opt.dataset.total = item.total;
       examSubject.appendChild(opt);
     }
   }
 });
 
-// Net hesaplama
-function updateNet() {
-  const c = parseInt(document.querySelector('input[name="correct"]').value) || 0;
-  const w = parseInt(document.querySelector('input[name="wrong"]').value) || 0;
-  const net = Math.max(0, c - w / 4);
-  document.getElementById('netDisplay').value = net.toFixed(2);
+examSubject.addEventListener('change', function() {
+  const type = examType.value;
+  if (type && this.value && SUBJECT_TOTALS[type] && SUBJECT_TOTALS[type][this.value]) {
+    const total = SUBJECT_TOTALS[type][this.value];
+    totalInfo.textContent = `Toplam: ${total} soru`;
+    autoFillEmpty();
+  } else {
+    totalInfo.textContent = '';
+  }
+  updateNet();
+});
+
+// Boş'u otomatik hesapla: total - correct - wrong
+function autoFillEmpty() {
+  const type = examType.value;
+  const subject = examSubject.value;
+  if (!type || !subject || !SUBJECT_TOTALS[type] || !SUBJECT_TOTALS[type][subject]) return;
+  const total = SUBJECT_TOTALS[type][subject];
+  const c = parseInt(correctInput.value) || 0;
+  const w = parseInt(wrongInput.value) || 0;
+  const remaining = total - c - w;
+  if (remaining >= 0) {
+    emptyInput.value = remaining;
+  }
 }
-document.querySelector('input[name="correct"]').addEventListener('input', updateNet);
-document.querySelector('input[name="wrong"]').addEventListener('input', updateNet);
+
+// Net hesaplama + doğrulama
+function updateNet() {
+  const c = parseInt(correctInput.value) || 0;
+  const w = parseInt(wrongInput.value) || 0;
+  const e = parseInt(emptyInput.value) || 0;
+  const net = Math.max(0, c - w / 4);
+  netDisplay.value = net.toFixed(2);
+
+  // Toplam kontrolü
+  const type = examType.value;
+  const subject = examSubject.value;
+  if (type && subject && SUBJECT_TOTALS[type] && SUBJECT_TOTALS[type][subject]) {
+    const total = SUBJECT_TOTALS[type][subject];
+    const sum = c + w + e;
+    if (sum > total) {
+      validationWarning.style.display = 'block';
+      validationWarning.textContent = `⚠ Doğru + yanlış + boş (${sum}) toplam sorudan (${total}) fazla olamaz.`;
+    } else if (sum < total && (c > 0 || w > 0 || e > 0)) {
+      validationWarning.style.display = 'block';
+      validationWarning.textContent = `ℹ ${total - sum} soru eksik. Toplam ${total} olmalı.`;
+      validationWarning.className = 'validation-warning validation-info';
+    } else {
+      validationWarning.style.display = 'none';
+    }
+    if (sum === total) {
+      validationWarning.style.display = 'none';
+    }
+  }
+}
+
+correctInput.addEventListener('input', () => { autoFillEmpty(); updateNet(); });
+wrongInput.addEventListener('input', () => { autoFillEmpty(); updateNet(); });
+emptyInput.addEventListener('input', updateNet);
 
 // Filtre için cascading dropdown
 const filterType = document.getElementById('filterType');
@@ -273,22 +345,20 @@ const currentFilterSubject = <%- JSON.stringify(filter.subject) %>;
 function updateFilterSubjects() {
   const type = filterType.value;
   const scope = filterScope.value;
-  const currentVal = filterSubject.value;
   filterSubject.innerHTML = '<option value="">Tüm Dersler/Alanlar</option>';
 
   if (type && scope && EXAM_STRUCTURE[type] && EXAM_STRUCTURE[type][scope]) {
-    for (const sub of EXAM_STRUCTURE[type][scope]) {
+    for (const item of EXAM_STRUCTURE[type][scope]) {
       const opt = document.createElement('option');
-      opt.value = sub;
-      opt.textContent = sub;
-      if (sub === currentFilterSubject) opt.selected = true;
+      opt.value = item.name;
+      opt.textContent = item.name;
+      if (item.name === currentFilterSubject) opt.selected = true;
       filterSubject.appendChild(opt);
     }
   } else if (type && EXAM_STRUCTURE[type]) {
-    // Kapsam seçilmediyse tüm dersleri göster
     const all = new Set();
     for (const s of Object.keys(EXAM_STRUCTURE[type])) {
-      for (const sub of EXAM_STRUCTURE[type][s]) all.add(sub);
+      for (const item of EXAM_STRUCTURE[type][s]) all.add(item.name);
     }
     for (const sub of all) {
       const opt = document.createElement('option');

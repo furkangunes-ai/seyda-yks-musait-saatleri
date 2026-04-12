@@ -301,29 +301,39 @@ function deleteCategory(id) {
 // DENEME SINAVLARI
 // ==========================================
 
-// TYT/AYT sınav yapısı - Kapsam ve Ders seçenekleri
+// TYT/AYT sınav yapısı - Sayısal öğrencisi için hazırlandı
+// Her seçeneğin toplam soru sayısı bellidir (ÖSYM standart)
 const EXAM_STRUCTURE = {
   TYT: {
-    Genel: ['Tam Deneme'],
-    Alan: ['Sosyal Bilimler', 'Fen Bilimleri'],
-    Ders: [
-      'Türkçe', 'Matematik',
-      'Tarih', 'Coğrafya', 'Felsefe', 'Din Kültürü',
-      'Fizik', 'Kimya', 'Biyoloji'
+    Genel: [
+      { name: 'Tam Deneme', total: 120 }
+    ],
+    Alan: [
+      { name: 'Türkçe', total: 40 },
+      { name: 'Matematik', total: 40 },
+      { name: 'Geometri', total: 10 },
+      { name: 'Sosyal Bilimler', total: 20 },
+      { name: 'Tarih', total: 5 },
+      { name: 'Coğrafya', total: 5 },
+      { name: 'Felsefe', total: 5 },
+      { name: 'Din Kültürü', total: 5 },
+      { name: 'Fen Bilimleri', total: 20 },
+      { name: 'Fizik', total: 7 },
+      { name: 'Kimya', total: 7 },
+      { name: 'Biyoloji', total: 6 }
     ]
   },
   AYT: {
-    Genel: ['Tam Deneme'],
-    Alan: [
-      'Sayısal', 'Eşit Ağırlık', 'Sözel',
-      'Fen Bilimleri', 'Sosyal Bilimler-1', 'Sosyal Bilimler-2'
+    Genel: [
+      { name: 'Sayısal Tam Deneme', total: 80 }
     ],
-    Ders: [
-      'Matematik',
-      'Türk Dili ve Edebiyatı',
-      'Tarih-1', 'Coğrafya-1',
-      'Tarih-2', 'Coğrafya-2', 'Felsefe Grubu', 'Din Kültürü',
-      'Fizik', 'Kimya', 'Biyoloji'
+    Alan: [
+      { name: 'Matematik', total: 40 },
+      { name: 'Geometri', total: 10 },
+      { name: 'Fen Bilimleri', total: 40 },
+      { name: 'Fizik', total: 14 },
+      { name: 'Kimya', total: 13 },
+      { name: 'Biyoloji', total: 13 }
     ]
   }
 };

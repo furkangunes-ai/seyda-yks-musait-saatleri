@@ -783,6 +783,30 @@ footer {
   text-align: center;
 }
 
+.total-info {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #4361ee;
+  font-weight: 600;
+}
+
+.validation-warning {
+  padding: 10px 14px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  color: #856404;
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+
+.validation-info {
+  background: #e3f2fd !important;
+  border-color: #90caf9 !important;
+  color: #0d47a1 !important;
+}
+
 /* Filtre Formu */
 .filter-form {
   display: flex;
