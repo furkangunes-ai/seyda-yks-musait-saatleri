@@ -163,7 +163,7 @@
       <div class="chart-container">
         <canvas id="netChart"></canvas>
       </div>
-      <p class="chart-hint">ℹ Aynı günün birden fazla denemesi tek noktada gösterilir (ortalama net). Nokta ne kadar büyükse o gün o kadar çok deneme çözülmüş demektir. Noktanın üzerine gelince o günkü tüm denemeler ayrı ayrı listelenir.</p>
+      <p class="chart-hint">ℹ Aynı günün birden fazla denemesi tek noktada gösterilir (ortalama net). Nokta ne kadar büyükse o gün o kadar çok deneme çözülmüş demektir. Noktanın üzerine gelince o günkü tüm denemeler ayrı ayrı listelenir. Composite deneme (AYT Fen, Sayısal Tam vb.) filtrelendiğinde alt derslerin seyri de aşağıda kesik çizgilerle görünür.</p>
       <div class="chart-summary">
         <% const nets = filtered.map(f => f.net); %>
         <% const avg = (nets.reduce((a,b) => a+b, 0) / nets.length).toFixed(2); %>
@@ -586,97 +586,11 @@ filterType.addEventListener('change', updateFilterSubjects);
 filterScope.addEventListener('change', updateFilterSubjects);
 updateFilterSubjects();
 
-// Grafik - aynı günün denemelerini grupla, ortalamalarını çizer
+// ==========================================
+// GRAFİK + GELİŞMİŞ ANALİZ
+// ==========================================
 <% if (filtered && filtered.length > 0) { %>
-  const rawData = <%- JSON.stringify(filtered.map(f => ({ date: f.exam_date, net: f.net, subject: f.subject, notes: f.notes }))) %>;
-
-  // Güne göre grupla
-  const byDate = {};
-  for (const item of rawData) {
-    if (!byDate[item.date]) byDate[item.date] = [];
-    byDate[item.date].push(item);
-  }
-  const dates = Object.keys(byDate).sort();
-  const chartData = dates.map(date => {
-    const items = byDate[date];
-    const avg = items.reduce((s, i) => s + i.net, 0) / items.length;
-    return {
-      date,
-      avgNet: parseFloat(avg.toFixed(2)),
-      count: items.length,
-      items
-    };
-  });
-
-  // Nokta büyüklüğü: deneme sayısı arttıkça nokta büyür
-  // 1 deneme → 5px, 2 → 8, 3 → 11, 4+ → 14-16
-  const pointSizes = chartData.map(d => Math.min(16, 5 + (d.count - 1) * 3));
-
-  const ctx = document.getElementById('netChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: chartData.map(d => d.date),
-      datasets: [{
-        label: 'Net',
-        data: chartData.map(d => d.avgNet),
-        borderColor: '#4361ee',
-        backgroundColor: 'rgba(67, 97, 238, 0.1)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.2,
-        pointRadius: pointSizes,
-        pointHoverRadius: pointSizes.map(r => r + 3),
-        pointBackgroundColor: '#4361ee',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: function(ctx) {
-              const d = chartData[ctx[0].dataIndex];
-              return d.date + (d.count > 1 ? ` — ${d.count} deneme` : '');
-            },
-            label: function(ctx) {
-              const d = chartData[ctx.dataIndex];
-              return d.count > 1
-                ? `Günlük Ortalama Net: ${d.avgNet}`
-                : `Net: ${d.avgNet}`;
-            },
-            afterLabel: function(ctx) {
-              const d = chartData[ctx.dataIndex];
-              if (d.count > 1) {
-                return d.items.map((i, idx) =>
-                  `  ${idx + 1}. ${i.net.toFixed(2)} — ${i.subject}${i.notes ? ` (${i.notes})` : ''}`
-                );
-              }
-              const it = d.items[0];
-              return `  ${it.subject}${it.notes ? ` (${it.notes})` : ''}`;
-            }
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Net' }
-        },
-        x: {
-          title: { display: true, text: 'Tarih' }
-        }
-      }
-    }
-  });
-
-  // ==========================================
-  // GELİŞMİŞ ANALİZ FONKSİYONLARI
-  // ==========================================
+  // --- Ortak sabitler ---
   const YKS_DATE = new Date('2026-06-20');
   const ALL_EXAMS = <%- JSON.stringify(exams) %>;
   const CURRENT_FILTER = <%- JSON.stringify(filter) %>;
@@ -702,6 +616,151 @@ updateFilterSubjects();
   function getColor(name, idx) {
     return SUBJECT_COLORS[name] || `hsl(${(idx * 47) % 360}, 65%, 55%)`;
   }
+
+  // Filtreye göre breakdown alt derslerini (Fizik/Kimya/Biyoloji gibi) döner
+  function getBreakdownSubjects(examType, subjectName) {
+    if (!examType || !subjectName) return [];
+    const struct = EXAM_STRUCTURE[examType];
+    if (!struct) return [];
+    for (const scope of Object.keys(struct)) {
+      for (const item of struct[scope]) {
+        if (item.name === subjectName && item.breakdown) {
+          return item.breakdown.map(b => b.name);
+        }
+      }
+    }
+    return [];
+  }
+
+  // ==========================================
+  // GİDİŞAT GRAFİĞİ (Ana)
+  // ==========================================
+  const rawData = FILTERED_RAW.map(f => ({
+    date: f.exam_date, net: f.net, subject: f.subject,
+    notes: ALL_EXAMS.find(e => e.id === f.id)?.notes || ''
+  }));
+
+  // Güne göre grupla
+  const byDate = {};
+  for (const item of rawData) {
+    if (!byDate[item.date]) byDate[item.date] = [];
+    byDate[item.date].push(item);
+  }
+  const dates = Object.keys(byDate).sort();
+  const chartData = dates.map(date => {
+    const items = byDate[date];
+    const avg = items.reduce((s, i) => s + i.net, 0) / items.length;
+    return { date, avgNet: parseFloat(avg.toFixed(2)), count: items.length, items };
+  });
+  const pointSizes = chartData.map(d => Math.min(16, 5 + (d.count - 1) * 3));
+
+  // Composite filter mi? → Alt ders çizgilerini oluştur
+  const breakdownSubjects = (CURRENT_FILTER.scope === 'Alan' || CURRENT_FILTER.scope === 'Genel')
+    ? getBreakdownSubjects(CURRENT_FILTER.exam_type, CURRENT_FILTER.subject)
+    : [];
+
+  // Her alt ders için tarihlere göre ortalama net
+  const subLineData = {};  // { subjectName: [net | null, ...] aligned with dates }
+  for (const subName of breakdownSubjects) {
+    subLineData[subName] = dates.map(date => {
+      const matches = ALL_EXAMS.filter(e =>
+        e.exam_date === date &&
+        e.scope === 'Alt Branş' &&
+        e.exam_type === CURRENT_FILTER.exam_type &&
+        e.subject === subName
+      );
+      if (matches.length === 0) return null;
+      return parseFloat((matches.reduce((s, m) => s + m.net, 0) / matches.length).toFixed(2));
+    });
+  }
+
+  // Datasets oluştur: ana toplam + alt ders çizgileri
+  const datasets = [{
+    label: CURRENT_FILTER.subject ? `${CURRENT_FILTER.subject} (Toplam)` : 'Toplam Net',
+    data: chartData.map(d => d.avgNet),
+    borderColor: '#4361ee',
+    backgroundColor: 'rgba(67, 97, 238, 0.1)',
+    borderWidth: 2.5,
+    fill: breakdownSubjects.length === 0,
+    tension: 0.2,
+    pointRadius: pointSizes,
+    pointHoverRadius: pointSizes.map(r => r + 3),
+    pointBackgroundColor: '#4361ee',
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    order: 1
+  }];
+
+  let colorIdx = 0;
+  for (const subName of breakdownSubjects) {
+    const color = getColor(subName, colorIdx++);
+    datasets.push({
+      label: subName,
+      data: subLineData[subName],
+      borderColor: color,
+      backgroundColor: color + '22',
+      borderWidth: 1.8,
+      borderDash: [6, 3],
+      fill: false,
+      tension: 0.25,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      pointBackgroundColor: color,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 1.5,
+      spanGaps: true,
+      order: 2
+    });
+  }
+
+  const ctx = document.getElementById('netChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels: dates, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: breakdownSubjects.length > 0,
+          position: 'bottom',
+          labels: { usePointStyle: true, padding: 12, font: { size: 11 } }
+        },
+        tooltip: {
+          callbacks: {
+            title: function(ctx) {
+              const d = chartData[ctx[0].dataIndex];
+              return d.date + (d.count > 1 ? ` — ${d.count} deneme` : '');
+            },
+            label: function(ctx) {
+              if (ctx.datasetIndex === 0) {
+                const d = chartData[ctx.dataIndex];
+                return (d.count > 1 ? 'Toplam (Günlük Ort): ' : 'Toplam: ') + d.avgNet;
+              }
+              if (ctx.parsed.y === null) return null;
+              return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}`;
+            },
+            afterLabel: function(ctx) {
+              if (ctx.datasetIndex !== 0) return null;
+              const d = chartData[ctx.dataIndex];
+              if (d.count > 1) {
+                return d.items.map((i, idx) =>
+                  `  ${idx + 1}. ${i.net.toFixed(2)} — ${i.subject}${i.notes ? ` (${i.notes})` : ''}`
+                );
+              }
+              const it = d.items[0];
+              return `  ${it.subject}${it.notes ? ` (${it.notes})` : ''}`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Net' } },
+        x: { title: { display: true, text: 'Tarih' } }
+      }
+    }
+  });
 
   // ---------- Linear Regresyon ----------
   function linearRegression(points) {
