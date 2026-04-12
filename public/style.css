@@ -1068,6 +1068,305 @@ footer {
 }
 
 /* ==========================================
+   GELİŞMİŞ ANALİZ
+   ========================================== */
+
+.analysis-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px dashed #e0e0e0;
+}
+
+.analysis-title {
+  font-size: 1.1rem;
+  color: #1a1a2e;
+  margin-bottom: 6px;
+}
+
+.analysis-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+
+.analysis-btn {
+  flex: 1;
+  min-width: 200px;
+  padding: 12px 18px;
+  border: 2px solid #4361ee;
+  background: white;
+  color: #4361ee;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.analysis-btn:hover {
+  background: #f0f4ff;
+}
+
+.analysis-btn.active {
+  background: #4361ee;
+  color: white;
+}
+
+.analysis-panel {
+  margin-top: 16px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.analysis-panel.hidden {
+  display: none;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.analysis-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.analysis-card h4 {
+  margin-bottom: 12px;
+  color: #1a1a2e;
+  font-size: 1.05rem;
+}
+
+.analysis-card h5 {
+  margin: 16px 0 10px;
+  color: #1a1a2e;
+  font-size: 0.95rem;
+}
+
+/* Tahmin paneli */
+.prediction-card {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f5e9 100%);
+}
+
+.pred-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.days-left {
+  background: #d62828;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.pred-main {
+  margin-bottom: 16px;
+}
+
+.pred-primary {
+  background: white;
+  padding: 16px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.pred-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.pred-value {
+  display: block;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #4361ee;
+  line-height: 1;
+  margin: 8px 0;
+}
+
+.pred-range {
+  display: block;
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.pred-quality {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 14px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pred-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pred-detail-item {
+  background: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 3px solid #4361ee;
+}
+
+.pd-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.pd-value {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.analysis-disclaimer {
+  background: rgba(255, 243, 205, 0.5);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #555;
+  line-height: 1.6;
+}
+
+/* Detaylı İstatistikler */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.stat-block {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.sb-label {
+  display: block;
+  font-size: 0.7rem;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.sb-value {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.stats-compare {
+  background: #f0f4ff;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.cmp-block {
+  background: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.cmp-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.cmp-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 2px;
+}
+
+.cmp-sub {
+  display: block;
+  font-size: 0.7rem;
+  color: #aaa;
+}
+
+.stats-highlights {
+  background: #fafafa;
+  padding: 14px 16px;
+  border-radius: 10px;
+}
+
+.highlight-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.hl-icon {
+  font-size: 1.1rem;
+}
+
+.hl-label {
+  color: #666;
+  min-width: 100px;
+}
+
+.hl-value {
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.hl-meta {
+  color: #888;
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+/* Breakdown chart */
+.breakdown-legend-info {
+  margin-top: 14px;
+  font-size: 0.82rem;
+  color: #666;
+  background: #f8f9fa;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+/* ==========================================
    MOBİL UYUMLULUK
    ========================================== */
 

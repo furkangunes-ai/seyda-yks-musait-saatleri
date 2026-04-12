@@ -186,6 +186,24 @@
           <span class="summary-value"><%= filtered.length %></span>
         </div>
       </div>
+
+      <!-- ==========================================
+           GELİŞMİŞ ANALİZ BUTONLARI
+           ========================================== -->
+      <div class="analysis-section">
+        <h3 class="analysis-title">📊 Gelişmiş Analiz</h3>
+        <p class="section-desc">Verilerinin üzerinden 20 Haziran YKS için tahmin, detaylı istatistikler ve alt ders dağılımı.</p>
+
+        <div class="analysis-buttons">
+          <button type="button" class="analysis-btn" data-target="prediction">🎯 20 Haziran YKS Tahmini</button>
+          <button type="button" class="analysis-btn" data-target="stats">📈 Detaylı İstatistikler</button>
+          <button type="button" class="analysis-btn" data-target="breakdown">📉 Alt Ders Dağılımı</button>
+        </div>
+
+        <div id="analysisPrediction" class="analysis-panel hidden"></div>
+        <div id="analysisStats" class="analysis-panel hidden"></div>
+        <div id="analysisBreakdown" class="analysis-panel hidden"></div>
+      </div>
     <% } else if (filter.exam_type || filter.scope || filter.subject) { %>
       <p class="empty-msg">Bu filtreye uygun deneme bulunamadı.</p>
     <% } else { %>
@@ -654,6 +672,421 @@ updateFilterSubjects();
         }
       }
     }
+  });
+
+  // ==========================================
+  // GELİŞMİŞ ANALİZ FONKSİYONLARI
+  // ==========================================
+  const YKS_DATE = new Date('2026-06-20');
+  const ALL_EXAMS = <%- JSON.stringify(exams) %>;
+  const CURRENT_FILTER = <%- JSON.stringify(filter) %>;
+  const FILTERED_RAW = <%- JSON.stringify(filtered.map(f => ({ id: f.id, exam_date: f.exam_date, exam_type: f.exam_type, scope: f.scope, subject: f.subject, net: f.net, correct: f.correct, wrong: f.wrong, empty: f.empty }))) %>;
+
+  // Ders renkleri
+  const SUBJECT_COLORS = {
+    'Fizik': '#4361ee',
+    'Kimya': '#06a77d',
+    'Biyoloji': '#e63946',
+    'Matematik': '#f77f00',
+    'Geometri': '#8338ec',
+    'Türkçe': '#9d4edd',
+    'Tarih': '#e76f51',
+    'Coğrafya': '#2a9d8f',
+    'Felsefe': '#e9c46a',
+    'Din Kültürü': '#f4a261',
+    'Sosyal Bilimler': '#264653',
+    'Fen Bilimleri': '#1d3557',
+    'Tarih-1': '#e76f51',
+    'Coğrafya-1': '#2a9d8f'
+  };
+  function getColor(name, idx) {
+    return SUBJECT_COLORS[name] || `hsl(${(idx * 47) % 360}, 65%, 55%)`;
+  }
+
+  // ---------- Linear Regresyon ----------
+  function linearRegression(points) {
+    const n = points.length;
+    if (n < 2) return null;
+    const sumX = points.reduce((s, p) => s + p.x, 0);
+    const sumY = points.reduce((s, p) => s + p.y, 0);
+    const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
+    const sumX2 = points.reduce((s, p) => s + p.x * p.x, 0);
+    const meanX = sumX / n, meanY = sumY / n;
+    const denom = n * sumX2 - sumX * sumX;
+    if (denom === 0) return null;
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+    const ssTotal = points.reduce((s, p) => s + Math.pow(p.y - meanY, 2), 0);
+    const ssResidual = points.reduce((s, p) => s + Math.pow(p.y - (slope * p.x + intercept), 2), 0);
+    const r2 = ssTotal === 0 ? 1 : 1 - (ssResidual / ssTotal);
+    const se = n > 2 ? Math.sqrt(ssResidual / (n - 2)) : 0;
+    return { slope, intercept, r2, se, n, meanX };
+  }
+
+  // Günlük verileri regresyon için hazırla (baseDate'den gün sayısı = x, net = y)
+  function prepareRegressionPoints(items, baseDate) {
+    return items.map(it => ({
+      x: Math.round((new Date(it.exam_date) - baseDate) / (1000 * 60 * 60 * 24)),
+      y: it.net
+    }));
+  }
+
+  function daysBetween(d1, d2) {
+    return Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+  }
+
+  // ---------- Tahmin Paneli ----------
+  function renderPrediction() {
+    const panel = document.getElementById('analysisPrediction');
+    if (FILTERED_RAW.length < 2) {
+      panel.innerHTML = `<div class="analysis-card"><p class="empty-msg">Tahmin için en az 2 deneme gerekli. Şu an ${FILTERED_RAW.length} deneme var.</p></div>`;
+      return;
+    }
+
+    const sortedData = [...FILTERED_RAW].sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
+    const baseDate = new Date(sortedData[0].exam_date);
+    const points = prepareRegressionPoints(sortedData, baseDate);
+    const reg = linearRegression(points);
+
+    if (!reg) {
+      panel.innerHTML = `<div class="analysis-card"><p class="empty-msg">Tahmin hesaplanamadı (tarihler çok yakın veya sabit).</p></div>`;
+      return;
+    }
+
+    const daysToYks = daysBetween(baseDate, YKS_DATE);
+    const predicted = reg.slope * daysToYks + reg.intercept;
+    const ciMargin = 1.96 * reg.se;
+    const predictionLow = Math.max(0, predicted - ciMargin);
+    const predictionHigh = predicted + ciMargin;
+
+    // Moving averages
+    const nets = sortedData.map(d => d.net);
+    const ma5 = nets.length >= 5 ? (nets.slice(-5).reduce((s, n) => s + n, 0) / 5).toFixed(2) : null;
+    const ma10 = nets.length >= 10 ? (nets.slice(-10).reduce((s, n) => s + n, 0) / 10).toFixed(2) : null;
+
+    // Exponential smoothing (α = 0.3, son ağırlıklı)
+    let expSmooth = nets[0];
+    for (let i = 1; i < nets.length; i++) expSmooth = 0.3 * nets[i] + 0.7 * expSmooth;
+
+    const today = new Date();
+    const daysUntilExam = Math.max(0, daysBetween(today, YKS_DATE));
+    const trend = reg.slope >= 0 ? 'artan' : 'azalan';
+    const trendColor = reg.slope >= 0 ? '#2e7d32' : '#c62828';
+
+    // R² kalite etiketi
+    let qualityLabel = 'Düşük güven', qualityColor = '#c62828';
+    if (reg.r2 >= 0.7) { qualityLabel = 'Yüksek güven'; qualityColor = '#2e7d32'; }
+    else if (reg.r2 >= 0.4) { qualityLabel = 'Orta güven'; qualityColor = '#f77f00'; }
+
+    panel.innerHTML = `
+      <div class="analysis-card prediction-card">
+        <div class="pred-header">
+          <h4>🎯 20 Haziran 2026 (YKS) Tahmini</h4>
+          <span class="days-left">Sınava <strong>${daysUntilExam}</strong> gün kaldı</span>
+        </div>
+
+        <div class="pred-main">
+          <div class="pred-primary">
+            <span class="pred-label">Linear Regresyon Tahmini</span>
+            <span class="pred-value">${predicted.toFixed(2)} net</span>
+            <span class="pred-range">Güven aralığı: <strong>${predictionLow.toFixed(2)} — ${predictionHigh.toFixed(2)}</strong></span>
+            <span class="pred-quality" style="background:${qualityColor}">R² = ${reg.r2.toFixed(3)} · ${qualityLabel}</span>
+          </div>
+        </div>
+
+        <div class="pred-details">
+          <div class="pred-detail-item">
+            <span class="pd-label">Günlük değişim hızı</span>
+            <span class="pd-value" style="color:${trendColor}">${reg.slope >= 0 ? '+' : ''}${reg.slope.toFixed(3)} net/gün (${trend})</span>
+          </div>
+          <div class="pred-detail-item">
+            <span class="pd-label">Haftalık değişim</span>
+            <span class="pd-value" style="color:${trendColor}">${reg.slope >= 0 ? '+' : ''}${(reg.slope * 7).toFixed(2)} net/hafta</span>
+          </div>
+          ${ma5 ? `<div class="pred-detail-item"><span class="pd-label">Son 5 Deneme Ortalaması</span><span class="pd-value">${ma5} net</span></div>` : ''}
+          ${ma10 ? `<div class="pred-detail-item"><span class="pd-label">Son 10 Deneme Ortalaması</span><span class="pd-value">${ma10} net</span></div>` : ''}
+          <div class="pred-detail-item">
+            <span class="pd-label">Üstel Düzeltilmiş Tahmin</span>
+            <span class="pd-value">${expSmooth.toFixed(2)} net</span>
+          </div>
+          <div class="pred-detail-item">
+            <span class="pd-label">Kullanılan veri sayısı</span>
+            <span class="pd-value">${reg.n} deneme</span>
+          </div>
+        </div>
+
+        <div class="analysis-disclaimer">
+          <strong>ℹ Yorumlama:</strong> Bu tahminler geçmiş eğilime göre matematiksel projeksiyondur.
+          Gerçek YKS sonucu çalışma temposu, stres ve sınav formatına göre değişebilir.
+          R² (<em>0-1 arası</em>) ne kadar 1'e yakınsa tahminin güvenilirliği o kadar yüksektir.
+          ${reg.n < 5 ? '<br><strong>⚠</strong> Az veri nedeniyle güvenilirlik düşük olabilir; daha çok deneme ekledikçe tahmin netleşir.' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------- Detaylı İstatistikler ----------
+  function renderStats() {
+    const panel = document.getElementById('analysisStats');
+    if (FILTERED_RAW.length === 0) {
+      panel.innerHTML = `<div class="analysis-card"><p class="empty-msg">Veri yok.</p></div>`;
+      return;
+    }
+
+    const sortedData = [...FILTERED_RAW].sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
+    const nets = sortedData.map(d => d.net);
+    const n = nets.length;
+    const mean = nets.reduce((s, v) => s + v, 0) / n;
+    const variance = nets.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / n;
+    const stdDev = Math.sqrt(variance);
+
+    const today = new Date();
+    const firstDate = new Date(sortedData[0].exam_date);
+    const lastDate = new Date(sortedData[sortedData.length - 1].exam_date);
+    const daysTracking = daysBetween(firstDate, today);
+    const daysUntilExam = Math.max(0, daysBetween(today, YKS_DATE));
+
+    // Toplam doğru/yanlış/boş (trend gözlemi için)
+    const totalC = sortedData.reduce((s, d) => s + d.correct, 0);
+    const totalW = sortedData.reduce((s, d) => s + d.wrong, 0);
+    const totalE = sortedData.reduce((s, d) => s + d.empty, 0);
+
+    // Son 30 gün vs önceki dönem karşılaştırma
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recent = sortedData.filter(d => new Date(d.exam_date) >= thirtyDaysAgo);
+    const older = sortedData.filter(d => new Date(d.exam_date) < thirtyDaysAgo);
+    const recentAvg = recent.length > 0 ? recent.reduce((s, d) => s + d.net, 0) / recent.length : null;
+    const olderAvg = older.length > 0 ? older.reduce((s, d) => s + d.net, 0) / older.length : null;
+
+    // Uniq günler
+    const uniqDates = new Set(sortedData.map(d => d.exam_date)).size;
+
+    // En iyi ve en kötü deneme
+    const best = sortedData.reduce((a, b) => a.net > b.net ? a : b);
+    const worst = sortedData.reduce((a, b) => a.net < b.net ? a : b);
+
+    // Ortalama deneme sıklığı (kaç günde bir)
+    const avgFrequency = uniqDates > 1 ? (daysBetween(firstDate, lastDate) / (uniqDates - 1)).toFixed(1) : '-';
+
+    let trendText = 'Yeterli veri yok';
+    let trendColor = '#888';
+    if (recentAvg !== null && olderAvg !== null) {
+      const diff = recentAvg - olderAvg;
+      const pct = olderAvg > 0 ? (diff / olderAvg * 100) : 0;
+      trendText = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
+      trendColor = diff >= 0 ? '#2e7d32' : '#c62828';
+    }
+
+    panel.innerHTML = `
+      <div class="analysis-card">
+        <h4>📈 Detaylı İstatistikler</h4>
+        <div class="stats-grid">
+          <div class="stat-block">
+            <span class="sb-label">Toplam Deneme</span>
+            <span class="sb-value">${n}</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Deneme Yapılan Gün</span>
+            <span class="sb-value">${uniqDates}</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Sınava Kalan</span>
+            <span class="sb-value" style="color:#d62828">${daysUntilExam} gün</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Takip Süresi</span>
+            <span class="sb-value">${Math.max(0, daysTracking)} gün</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Ortalama Net</span>
+            <span class="sb-value">${mean.toFixed(2)}</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Standart Sapma</span>
+            <span class="sb-value">${stdDev.toFixed(2)}</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Ort. Deneme Sıklığı</span>
+            <span class="sb-value">${avgFrequency} günde 1</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Toplam Doğru</span>
+            <span class="sb-value" style="color:#2e7d32">${totalC}</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Toplam Yanlış</span>
+            <span class="sb-value" style="color:#c62828">${totalW}</span>
+          </div>
+          <div class="stat-block">
+            <span class="sb-label">Toplam Boş</span>
+            <span class="sb-value" style="color:#888">${totalE}</span>
+          </div>
+        </div>
+
+        <div class="stats-compare">
+          <h5>Son 30 Gün vs Önceki Dönem</h5>
+          <div class="compare-grid">
+            <div class="cmp-block">
+              <span class="cmp-label">Son 30 gün ortalama</span>
+              <span class="cmp-value">${recentAvg !== null ? recentAvg.toFixed(2) : '-'} net</span>
+              <span class="cmp-sub">(${recent.length} deneme)</span>
+            </div>
+            <div class="cmp-block">
+              <span class="cmp-label">Önceki dönem ortalama</span>
+              <span class="cmp-value">${olderAvg !== null ? olderAvg.toFixed(2) : '-'} net</span>
+              <span class="cmp-sub">(${older.length} deneme)</span>
+            </div>
+            <div class="cmp-block">
+              <span class="cmp-label">Değişim</span>
+              <span class="cmp-value" style="color:${trendColor}">${trendText}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-highlights">
+          <div class="highlight-row">
+            <span class="hl-icon">🏆</span>
+            <span class="hl-label">En İyi Deneme:</span>
+            <span class="hl-value">${best.net.toFixed(2)} net</span>
+            <span class="hl-meta">${best.exam_date} · ${best.subject}</span>
+          </div>
+          <div class="highlight-row">
+            <span class="hl-icon">📉</span>
+            <span class="hl-label">En Düşük:</span>
+            <span class="hl-value">${worst.net.toFixed(2)} net</span>
+            <span class="hl-meta">${worst.exam_date} · ${worst.subject}</span>
+          </div>
+          <div class="highlight-row">
+            <span class="hl-icon">📅</span>
+            <span class="hl-label">İlk Deneme:</span>
+            <span class="hl-value">${sortedData[0].exam_date}</span>
+          </div>
+          <div class="highlight-row">
+            <span class="hl-icon">⏰</span>
+            <span class="hl-label">Son Deneme:</span>
+            <span class="hl-value">${sortedData[sortedData.length - 1].exam_date}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------- Alt Ders Dağılımı (Stacked Bar) ----------
+  let breakdownChart = null;
+
+  function renderBreakdown() {
+    const panel = document.getElementById('analysisBreakdown');
+
+    // Bu filtrede composite parent kayıt var mı kontrol et (scope Genel veya Alan, breakdown'lı)
+    const parentRecords = FILTERED_RAW.filter(r => r.scope === 'Genel' || r.scope === 'Alan');
+    if (parentRecords.length === 0) {
+      panel.innerHTML = `<div class="analysis-card">
+        <p class="empty-msg">Alt ders dağılımı için composite bir deneme filtrelemeniz lazım.
+        Örn: <strong>Sınav Türü = AYT, Kapsam = Alan, Ders = Fen Bilimleri</strong> seçerseniz,
+        her AYT Fen denemesi için Fizik/Kimya/Biyoloji alt dersleri stacked bar olarak gösterilir.</p>
+      </div>`;
+      return;
+    }
+
+    // Her parent için aynı tarihteki Alt Branş kayıtlarını topla
+    const stackedByDate = {};
+    const subjectSet = new Set();
+
+    for (const parent of parentRecords) {
+      const subs = ALL_EXAMS.filter(e =>
+        e.exam_date === parent.exam_date &&
+        e.exam_type === parent.exam_type &&
+        e.scope === 'Alt Branş'
+      );
+      if (!stackedByDate[parent.exam_date]) stackedByDate[parent.exam_date] = [];
+      for (const sub of subs) {
+        stackedByDate[parent.exam_date].push({ subject: sub.subject, net: sub.net });
+        subjectSet.add(sub.subject);
+      }
+    }
+
+    const dates = Object.keys(stackedByDate).sort();
+    const subjects = [...subjectSet];
+
+    if (subjects.length === 0) {
+      panel.innerHTML = `<div class="analysis-card">
+        <p class="empty-msg">Bu composite denemelerde alt ders kaydı bulunamadı. (Breakdown ile kaydedilmiş olmalı.)</p>
+      </div>`;
+      return;
+    }
+
+    const datasets = subjects.map((subj, idx) => ({
+      label: subj,
+      data: dates.map(date => {
+        const entry = stackedByDate[date].find(e => e.subject === subj);
+        return entry ? entry.net : 0;
+      }),
+      backgroundColor: getColor(subj, idx),
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.1)'
+    }));
+
+    panel.innerHTML = `
+      <div class="analysis-card">
+        <h4>📉 Alt Ders Dağılımı — ${CURRENT_FILTER.subject || 'Tüm Composite'}</h4>
+        <p class="section-desc">Her denemenin altında yatan ders katkıları. Toplam net = alt derslerin netlerinin toplamı.</p>
+        <div class="chart-container" style="height:350px">
+          <canvas id="breakdownChart"></canvas>
+        </div>
+        <div class="breakdown-legend-info">
+          <p>ℹ Her çubuk bir deneme tarihini temsil eder. Renkli segmentler o tarihteki alt derslerin net katkılarıdır.
+          Bar yüksekliği = toplam net. Hangi ders daha büyük = o derse daha iyi hakim.</p>
+        </div>
+      </div>
+    `;
+
+    if (breakdownChart) breakdownChart.destroy();
+    const ctxB = document.getElementById('breakdownChart').getContext('2d');
+    breakdownChart = new Chart(ctxB, {
+      type: 'bar',
+      data: { labels: dates, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              footer: function(items) {
+                const total = items.reduce((s, it) => s + it.parsed.y, 0);
+                return 'Toplam Net: ' + total.toFixed(2);
+              }
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, title: { display: true, text: 'Tarih' } },
+          y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Net' } }
+        }
+      }
+    });
+  }
+
+  // ---------- Buton toggle davranışı ----------
+  document.querySelectorAll('.analysis-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const target = this.dataset.target;
+      const panel = document.getElementById('analysis' + target.charAt(0).toUpperCase() + target.slice(1));
+      const isOpen = !panel.classList.contains('hidden');
+
+      // Tüm panelleri kapat
+      document.querySelectorAll('.analysis-panel').forEach(p => p.classList.add('hidden'));
+      document.querySelectorAll('.analysis-btn').forEach(b => b.classList.remove('active'));
+
+      if (!isOpen) {
+        panel.classList.remove('hidden');
+        this.classList.add('active');
+        if (target === 'prediction') renderPrediction();
+        else if (target === 'stats') renderStats();
+        else if (target === 'breakdown') renderBreakdown();
+      }
+    });
   });
 <% } %>
 </script>
