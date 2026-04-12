@@ -76,9 +76,17 @@ db.exec(`
     empty INTEGER NOT NULL DEFAULT 0,
     net REAL NOT NULL DEFAULT 0,
     notes TEXT,
+    parent_id INTEGER,
     created_at TEXT DEFAULT (datetime('now'))
   )
 `);
+
+// parent_id sütunu yoksa ekle (eski veritabanları için)
+try {
+  db.exec(`ALTER TABLE exam_results ADD COLUMN parent_id INTEGER`);
+} catch (e) {
+  // sütun zaten var
+}
 
 const DAYS = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
@@ -396,8 +404,8 @@ function addExam(data) {
 
   const stmt = db.prepare(`
     INSERT INTO exam_results
-      (exam_date, exam_type, scope, subject, correct, wrong, empty, net, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (exam_date, exam_type, scope, subject, correct, wrong, empty, net, notes, parent_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   return stmt.run(
     data.exam_date,
@@ -405,7 +413,8 @@ function addExam(data) {
     data.scope,
     data.subject || null,
     correct, wrong, empty, net,
-    data.notes || null
+    data.notes || null,
+    data.parent_id || null
   );
 }
 
@@ -434,6 +443,8 @@ function getExamsByFilter(examType, scope, subject) {
 }
 
 function deleteExam(id) {
+  // Cascade: önce çocuk kayıtları sil (parent_id = id olanlar)
+  db.prepare('DELETE FROM exam_results WHERE parent_id = ?').run(id);
   return db.prepare('DELETE FROM exam_results WHERE id = ?').run(id).changes > 0;
 }
 

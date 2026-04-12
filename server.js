@@ -306,13 +306,15 @@ app.post('/admin/denemeler/add', requireAdmin, (req, res) => {
     }
 
     // Ana (composite) kayıt
-    db.addExam({
+    const parentResult = db.addExam({
       exam_date, exam_type, scope, subject,
       correct: totalC, wrong: totalW, empty: totalE,
       notes
     });
+    const parentId = parentResult.lastInsertRowid;
 
     // Alt dersler için ayrı kayıtlar (scope: 'Alt Branş')
+    // parent_id ile ana kayda bağlanır, böylece tam eşleşme garanti
     for (const s of subItems) {
       db.addExam({
         exam_date,
@@ -320,7 +322,8 @@ app.post('/admin/denemeler/add', requireAdmin, (req, res) => {
         scope: 'Alt Branş',
         subject: s.name,
         correct: s.correct, wrong: s.wrong, empty: s.empty,
-        notes: `${subject} denemesi içinden`
+        notes: `${subject} denemesi içinden`,
+        parent_id: parentId
       });
     }
 

@@ -597,7 +597,7 @@ updateFilterSubjects();
   const YKS_DATE = new Date('2026-06-20');
   const ALL_EXAMS = <%- JSON.stringify(exams) %>;
   const CURRENT_FILTER = <%- JSON.stringify(filter) %>;
-  const FILTERED_RAW = <%- JSON.stringify(filtered.map(f => ({ id: f.id, exam_date: f.exam_date, exam_type: f.exam_type, scope: f.scope, subject: f.subject, net: f.net, correct: f.correct, wrong: f.wrong, empty: f.empty }))) %>;
+  const FILTERED_RAW = <%- JSON.stringify(filtered.map(f => ({ id: f.id, exam_date: f.exam_date, exam_type: f.exam_type, scope: f.scope, subject: f.subject, net: f.net, correct: f.correct, wrong: f.wrong, empty: f.empty, parent_id: f.parent_id }))) %>;
 
   // Ders renkleri
   const SUBJECT_COLORS = {
@@ -635,6 +635,30 @@ updateFilterSubjects();
     return [];
   }
 
+  // Bir parent kaydının alt ders (Alt Branş) çocuklarını döner.
+  // Önce parent_id ile kesin eşleşme; yoksa eski kayıtlar için tarih/tür/ders
+  // fallback'i (diğer parent'a bağlı olmayan çocuklar).
+  function getChildrenForParent(parent) {
+    const direct = ALL_EXAMS.filter(e =>
+      e.parent_id === parent.id && e.scope === 'Alt Branş'
+    );
+    if (direct.length > 0) return direct;
+
+    // Fallback (geçmiş veriler için)
+    const bdSubjects = getBreakdownSubjects(parent.exam_type, parent.subject);
+    if (bdSubjects.length === 0) return [];
+    const linkedChildIds = new Set(
+      ALL_EXAMS.filter(e => e.parent_id != null).map(e => e.id)
+    );
+    return ALL_EXAMS.filter(e =>
+      e.exam_date === parent.exam_date &&
+      e.exam_type === parent.exam_type &&
+      e.scope === 'Alt Branş' &&
+      bdSubjects.includes(e.subject) &&
+      !linkedChildIds.has(e.id)
+    );
+  }
+
   // ==========================================
   // GİDİŞAT GRAFİĞİ (Ana)
   // ==========================================
@@ -662,14 +686,21 @@ updateFilterSubjects();
     ? getBreakdownSubjects(CURRENT_FILTER.exam_type, CURRENT_FILTER.subject)
     : [];
 
+  // Sadece filtredeki composite parent'ların alt derslerini topla
+  // (başka composite'in alt dersleri dahil olmamalı)
+  const filteredChildren = [];
+  for (const p of FILTERED_RAW) {
+    if (p.scope === 'Alan' || p.scope === 'Genel') {
+      filteredChildren.push(...getChildrenForParent(p));
+    }
+  }
+
   // Her alt ders için tarihlere göre ortalama net
-  const subLineData = {};  // { subjectName: [net | null, ...] aligned with dates }
+  const subLineData = {};
   for (const subName of breakdownSubjects) {
     subLineData[subName] = dates.map(date => {
-      const matches = ALL_EXAMS.filter(e =>
+      const matches = filteredChildren.filter(e =>
         e.exam_date === date &&
-        e.scope === 'Alt Branş' &&
-        e.exam_type === CURRENT_FILTER.exam_type &&
         e.subject === subName
       );
       if (matches.length === 0) return null;
@@ -812,15 +843,10 @@ updateFilterSubjects();
       const badgeCls = scopeBadgeClass(rec.scope);
 
       // Bu composite parent ise alt ders kayıtlarını bul
+      // parent_id bazlı kesin eşleşme kullanılır
       let breakdownSubs = [];
       if (rec.scope === 'Alan' || rec.scope === 'Genel') {
-        const bdSubjects = getBreakdownSubjects(rec.exam_type, rec.subject);
-        breakdownSubs = ALL_EXAMS.filter(e =>
-          e.exam_date === date &&
-          e.scope === 'Alt Branş' &&
-          e.exam_type === rec.exam_type &&
-          bdSubjects.includes(e.subject)
-        );
+        breakdownSubs = getChildrenForParent(rec);
       }
 
       const maxN = getMaxNet(rec.exam_type, rec.subject);
@@ -1289,19 +1315,20 @@ updateFilterSubjects();
       return;
     }
 
-    // Her parent için aynı tarihteki Alt Branş kayıtlarını topla
+    // Her parent için alt ders kayıtlarını (parent_id bazlı) topla.
+    // Aynı gün birden fazla composite varsa her biri ayrı kayıt olur (toplama).
     const stackedByDate = {};
     const subjectSet = new Set();
 
     for (const parent of parentRecords) {
-      const subs = ALL_EXAMS.filter(e =>
-        e.exam_date === parent.exam_date &&
-        e.exam_type === parent.exam_type &&
-        e.scope === 'Alt Branş'
-      );
-      if (!stackedByDate[parent.exam_date]) stackedByDate[parent.exam_date] = [];
+      const subs = getChildrenForParent(parent);
+      if (!stackedByDate[parent.exam_date]) stackedByDate[parent.exam_date] = {};
       for (const sub of subs) {
-        stackedByDate[parent.exam_date].push({ subject: sub.subject, net: sub.net });
+        if (!stackedByDate[parent.exam_date][sub.subject]) {
+          stackedByDate[parent.exam_date][sub.subject] = { total: 0, count: 0 };
+        }
+        stackedByDate[parent.exam_date][sub.subject].total += sub.net;
+        stackedByDate[parent.exam_date][sub.subject].count += 1;
         subjectSet.add(sub.subject);
       }
     }
@@ -1319,8 +1346,10 @@ updateFilterSubjects();
     const datasets = subjects.map((subj, idx) => ({
       label: subj,
       data: dates.map(date => {
-        const entry = stackedByDate[date].find(e => e.subject === subj);
-        return entry ? entry.net : 0;
+        const entry = stackedByDate[date] && stackedByDate[date][subj];
+        if (!entry) return 0;
+        // Aynı gün aynı ders birden fazla parent'ta varsa ortalama al
+        return parseFloat((entry.total / entry.count).toFixed(2));
       }),
       backgroundColor: getColor(subj, idx),
       borderWidth: 1,
