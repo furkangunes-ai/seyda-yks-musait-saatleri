@@ -417,7 +417,17 @@ function getExamsByFilter(examType, scope, subject) {
   let query = 'SELECT * FROM exam_results WHERE 1=1';
   const params = [];
   if (examType) { query += ' AND exam_type = ?'; params.push(examType); }
-  if (scope) { query += ' AND scope = ?'; params.push(scope); }
+
+  // 'Tekil Ders' filtresi = o ders adına ait tüm tekli kayıtlar
+  // (hem standalone 'Tekil Ders' hem de composite içinden gelen 'Alt Branş')
+  if (scope === 'Tekil Ders') {
+    query += ' AND scope IN (?, ?)';
+    params.push('Tekil Ders', 'Alt Branş');
+  } else if (scope) {
+    query += ' AND scope = ?';
+    params.push(scope);
+  }
+
   if (subject) { query += ' AND subject = ?'; params.push(subject); }
   query += ' ORDER BY exam_date ASC, id ASC';
   return db.prepare(query).all(...params);

@@ -148,9 +148,9 @@
       <select name="scope" id="filterScope">
         <option value="">Tüm Kapsamlar</option>
         <option value="Genel" <%= filter.scope === 'Genel' ? 'selected' : '' %>>Genel (Tam Deneme)</option>
-        <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan / Branş (Toplu)</option>
-        <option value="Tekil Ders" <%= filter.scope === 'Tekil Ders' ? 'selected' : '' %>>Tekil Ders (Tek ders denemesi)</option>
-        <option value="Alt Branş" <%= filter.scope === 'Alt Branş' ? 'selected' : '' %>>Alt Ders (Composite içinden)</option>
+        <option value="Alan" <%= filter.scope === 'Alan' ? 'selected' : '' %>>Alan / Branş (Toplu Composite)</option>
+        <option value="Tekil Ders" <%= filter.scope === 'Tekil Ders' ? 'selected' : '' %>>Tekil Ders (Her kaynaktan birleşik)</option>
+        <option value="Alt Branş" <%= filter.scope === 'Alt Branş' ? 'selected' : '' %>>Alt Ders (Sadece composite içinden)</option>
       </select>
       <select name="subject" id="filterSubject">
         <option value="">Tüm Dersler/Alanlar</option>
@@ -508,8 +508,26 @@ function updateFilterSubjects() {
   const options = new Set();
 
   if (type && EXAM_STRUCTURE[type]) {
-    // Alt Branş seçildiyse: tüm breakdown alt derslerini göster
-    if (scope === 'Alt Branş') {
+    // 'Tekil Ders' seçildiyse: hem Tekil Ders listesindeki dersler
+    // hem de composite breakdown'larda geçen tüm alt dersler.
+    // Böylece "Tekil Ders + Fizik" seçimi, AYT Fen veya Sayısal Tam
+    // içinden gelen Fizik kayıtlarını da kapsar.
+    if (scope === 'Tekil Ders') {
+      if (EXAM_STRUCTURE[type]['Tekil Ders']) {
+        for (const item of EXAM_STRUCTURE[type]['Tekil Ders']) {
+          options.add(item.name);
+        }
+      }
+      for (const s of Object.keys(EXAM_STRUCTURE[type])) {
+        for (const item of EXAM_STRUCTURE[type][s]) {
+          if (item.breakdown) {
+            for (const sub of item.breakdown) options.add(sub.name);
+          }
+        }
+      }
+    }
+    // Alt Branş seçildiyse: sadece composite içinden gelen alt dersler
+    else if (scope === 'Alt Branş') {
       for (const s of Object.keys(EXAM_STRUCTURE[type])) {
         for (const item of EXAM_STRUCTURE[type][s]) {
           if (item.breakdown) {
