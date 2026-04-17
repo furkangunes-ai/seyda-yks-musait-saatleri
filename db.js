@@ -88,6 +88,35 @@ try {
   // sütun zaten var
 }
 
+// Deneme konuları (yanlış yapılan ders konuları)
+// Her konu bir derse aittir. (name + subject) çifti benzersiz olur.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS exam_topics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(name, subject)
+  )
+`);
+
+// Denemelerden öğrenilen bilgiler (cümle cümle notlar)
+// exam_id = ait olduğu ana exam_results kaydının id'si (parent).
+// subject = hangi ders için alındığı (composite içinde alt ders olabilir).
+// topic_id opsiyonel; yanlış yapılan konu etiketi.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS exam_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    exam_id INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    content TEXT NOT NULL,
+    topic_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (exam_id) REFERENCES exam_results(id) ON DELETE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES exam_topics(id) ON DELETE SET NULL
+  )
+`);
+
 const DAYS = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
 const DAYS_DISPLAY = {
@@ -443,7 +472,13 @@ function getExamsByFilter(examType, scope, subject) {
 }
 
 function deleteExam(id) {
-  // Cascade: önce çocuk kayıtları sil (parent_id = id olanlar)
+  // Önce: bu ana kaydın ve çocuk kayıtların tüm notlarını sil
+  const childIds = db.prepare('SELECT id FROM exam_results WHERE parent_id = ?').all(id).map(r => r.id);
+  const allIds = [id, ...childIds];
+  const placeholders = allIds.map(() => '?').join(',');
+  db.prepare(`DELETE FROM exam_notes WHERE exam_id IN (${placeholders})`).run(...allIds);
+
+  // Çocuk kayıtları sil
   db.prepare('DELETE FROM exam_results WHERE parent_id = ?').run(id);
   return db.prepare('DELETE FROM exam_results WHERE id = ?').run(id).changes > 0;
 }
@@ -458,6 +493,129 @@ function getExamStats() {
 }
 
 // ==========================================
+// DENEME NOTLARI VE KONULARI
+// ==========================================
+
+// Tek bir deneme kaydını ID ile getir
+function getExamById(id) {
+  return db.prepare('SELECT * FROM exam_results WHERE id = ?').get(id);
+}
+
+// Bir composite denemenin alt dersleri (Alt Branş) + kendisi için
+// not eklenebilecek ders listesini döner.
+function getSubjectsForExam(exam) {
+  if (!exam) return [];
+  // Composite: parent ise kendi alt branşlarını döndür (sadece alt dersler not alınır)
+  if (exam.scope === 'Genel' || exam.scope === 'Alan') {
+    const children = db.prepare(
+      `SELECT id, subject FROM exam_results WHERE parent_id = ? ORDER BY id`
+    ).all(exam.id);
+    if (children.length > 0) {
+      return children.map(c => ({ subject: c.subject, child_exam_id: c.id }));
+    }
+    // Alt breakdown tanımlı ama kaydedilmemişse (çok eski kayıt), yine de parent subject'i aç
+    return [{ subject: exam.subject, child_exam_id: null }];
+  }
+  // Tekil ders / Alt Branş: tek ders
+  return [{ subject: exam.subject, child_exam_id: null }];
+}
+
+// Bir denemenin tüm notları (ders ve konu ile birlikte)
+function getNotesByExam(examId) {
+  return db.prepare(`
+    SELECT n.*, t.name AS topic_name
+    FROM exam_notes n
+    LEFT JOIN exam_topics t ON n.topic_id = t.id
+    WHERE n.exam_id = ?
+    ORDER BY n.subject ASC, n.created_at ASC, n.id ASC
+  `).all(examId);
+}
+
+// Bir composite denemenin (parent) tüm notları (kendi + alt derslerinin)
+function getNotesForExamTree(parentExam) {
+  if (!parentExam) return [];
+  const ids = [parentExam.id];
+  if (parentExam.scope === 'Genel' || parentExam.scope === 'Alan') {
+    const childIds = db.prepare(
+      `SELECT id FROM exam_results WHERE parent_id = ?`
+    ).all(parentExam.id).map(r => r.id);
+    ids.push(...childIds);
+  }
+  const placeholders = ids.map(() => '?').join(',');
+  return db.prepare(`
+    SELECT n.*, t.name AS topic_name
+    FROM exam_notes n
+    LEFT JOIN exam_topics t ON n.topic_id = t.id
+    WHERE n.exam_id IN (${placeholders})
+    ORDER BY n.subject ASC, n.created_at ASC, n.id ASC
+  `).all(...ids);
+}
+
+function addNote({ exam_id, subject, content, topic_id }) {
+  return db.prepare(`
+    INSERT INTO exam_notes (exam_id, subject, content, topic_id)
+    VALUES (?, ?, ?, ?)
+  `).run(exam_id, subject, content, topic_id || null);
+}
+
+function deleteNote(id) {
+  return db.prepare('DELETE FROM exam_notes WHERE id = ?').run(id).changes > 0;
+}
+
+// Konu (topic) ekle veya varolanı getir (name + subject eşleşirse)
+function addOrGetTopic(name, subject) {
+  const cleanName = (name || '').trim();
+  const cleanSubject = (subject || '').trim();
+  if (!cleanName || !cleanSubject) return null;
+  const existing = db.prepare(
+    'SELECT * FROM exam_topics WHERE name = ? AND subject = ?'
+  ).get(cleanName, cleanSubject);
+  if (existing) return existing;
+  const result = db.prepare(
+    'INSERT INTO exam_topics (name, subject) VALUES (?, ?)'
+  ).run(cleanName, cleanSubject);
+  return { id: result.lastInsertRowid, name: cleanName, subject: cleanSubject };
+}
+
+function getTopicsBySubject(subject) {
+  return db.prepare(
+    'SELECT * FROM exam_topics WHERE subject = ? ORDER BY name ASC'
+  ).all(subject);
+}
+
+function getAllTopics() {
+  return db.prepare('SELECT * FROM exam_topics ORDER BY subject ASC, name ASC').all();
+}
+
+function deleteTopic(id) {
+  return db.prepare('DELETE FROM exam_topics WHERE id = ?').run(id).changes > 0;
+}
+
+// Tüm notları dersler ve denemelere göre gruplanmış şekilde döner
+// (toplu görünüm için).
+function getAllNotesGrouped() {
+  const rows = db.prepare(`
+    SELECT n.*, t.name AS topic_name,
+           e.exam_date, e.exam_type, e.scope AS exam_scope,
+           e.subject AS exam_subject, e.parent_id,
+           p.subject AS parent_subject, p.scope AS parent_scope
+    FROM exam_notes n
+    LEFT JOIN exam_topics t ON n.topic_id = t.id
+    LEFT JOIN exam_results e ON n.exam_id = e.id
+    LEFT JOIN exam_results p ON e.parent_id = p.id
+    ORDER BY n.subject ASC, e.exam_date DESC, n.created_at DESC, n.id DESC
+  `).all();
+
+  const grouped = {};
+  for (const r of rows) {
+    const key = r.subject;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(r);
+  }
+  return grouped;
+}
+
+// ==========================================
 // YEDEKLEME İÇİN VERİ DIŞA AKTARMA
 // ==========================================
 
@@ -467,7 +625,9 @@ function exportAllData() {
     categories: db.prepare('SELECT * FROM categories').all(),
     time_slots: db.prepare('SELECT * FROM time_slots').all(),
     meta: db.prepare('SELECT * FROM meta').all(),
-    exam_results: db.prepare('SELECT * FROM exam_results').all()
+    exam_results: db.prepare('SELECT * FROM exam_results').all(),
+    exam_topics: db.prepare('SELECT * FROM exam_topics').all(),
+    exam_notes: db.prepare('SELECT * FROM exam_notes').all()
   };
 }
 
@@ -494,6 +654,17 @@ module.exports = {
   getExamsByFilter,
   deleteExam,
   getExamStats,
+  getExamById,
+  getSubjectsForExam,
+  getNotesByExam,
+  getNotesForExamTree,
+  addNote,
+  deleteNote,
+  addOrGetTopic,
+  getTopicsBySubject,
+  getAllTopics,
+  deleteTopic,
+  getAllNotesGrouped,
   exportAllData,
   EXAM_STRUCTURE,
   DAYS,

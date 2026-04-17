@@ -1,0 +1,191 @@
+<%- include('partials/head', { title: "Deneme Notları - Şeyda" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>📝 Deneme Notları</h1>
+        <p class="subtitle">Bu denemeden öğrendiğin bilgileri ders ders kaydet. Yanlış yaptığın konuyu notun yanına ekleyebilirsin.</p>
+      </div>
+      <div class="nav-buttons">
+        <a href="/admin/denemeler" class="btn btn-secondary">← Denemeler</a>
+        <a href="/admin/denemeler/notlar/tumu" class="btn btn-secondary">📚 Tüm Notlar</a>
+      </div>
+    </div>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <!-- Deneme özeti -->
+  <div class="section-card">
+    <h2>Deneme Bilgisi</h2>
+    <div class="exam-summary">
+      <div class="es-item">
+        <span class="es-label">Tarih</span>
+        <span class="es-value"><%= exam.exam_date %></span>
+      </div>
+      <div class="es-item">
+        <span class="es-label">Sınav</span>
+        <span class="es-value"><span class="exam-badge exam-badge-<%= exam.exam_type.toLowerCase() %>"><%= exam.exam_type %></span></span>
+      </div>
+      <div class="es-item">
+        <span class="es-label">Kapsam</span>
+        <span class="es-value"><%= exam.scope %></span>
+      </div>
+      <div class="es-item">
+        <span class="es-label">Ders / Alan</span>
+        <span class="es-value"><strong><%= exam.subject %></strong></span>
+      </div>
+      <div class="es-item">
+        <span class="es-label">Net</span>
+        <span class="es-value"><strong class="net-value"><%= exam.net.toFixed(2) %></strong></span>
+      </div>
+      <% if (exam.notes) { %>
+        <div class="es-item es-item-full">
+          <span class="es-label">Not</span>
+          <span class="es-value"><%= exam.notes %></span>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Yeni not ekle -->
+  <div class="section-card">
+    <h2>Yeni Bilgi Ekle</h2>
+    <p class="section-desc">
+      Hangi ders için bilgi eklemek istediğini seç. Yanlış yaptığın bir konudan bilgi not ediyorsan
+      sağdaki kutudan varolan bir konuyu seç ya da yeni bir konu adı yaz.
+    </p>
+
+    <form action="/admin/denemeler/<%= exam.id %>/notlar/ekle" method="POST" class="note-add-form" id="noteForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ders *</label>
+          <select name="subject" id="subjectSelect" required>
+            <% subjects.forEach((s, idx) => { %>
+              <option value="<%= s.subject %>"
+                      data-child-id="<%= s.child_exam_id || '' %>"
+                      <%= idx === 0 ? 'selected' : '' %>>
+                <%= s.subject %>
+              </option>
+            <% }); %>
+          </select>
+          <!-- Composite ise notu alt ders kaydına bağla -->
+          <input type="hidden" name="target_exam_id" id="targetExamId" value="<%= subjects[0] && subjects[0].child_exam_id ? subjects[0].child_exam_id : exam.id %>">
+        </div>
+
+        <div class="form-group form-group-topic">
+          <label>Konu (opsiyonel)</label>
+          <div class="topic-inputs">
+            <select name="topic_select" id="topicSelect">
+              <option value="">-- Varolan konulardan seç --</option>
+            </select>
+            <span class="topic-or">veya</span>
+            <input type="text" name="topic_new" id="topicNew" placeholder="Yeni konu adı yaz (örn: Limit)" maxlength="100">
+          </div>
+          <small class="topic-hint">İki alandan birini doldurabilirsin. Yeni konu yazarsan seçim iptal olur.</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group form-group-full">
+          <label>Öğrenilen Bilgi / Cümle *</label>
+          <textarea name="content" rows="3" required placeholder="Örn: Sinüs fonksiyonunun periyodu 2π'dir, kosinüsten π/2 ileridedir."></textarea>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Bilgiyi Kaydet</button>
+    </form>
+  </div>
+
+  <!-- Bu denemenin notları (ders ders gruplanmış) -->
+  <div class="section-card">
+    <h2>Bu Denemeden Öğrenilen Bilgiler (<%= notes.length %>)</h2>
+
+    <% if (notes.length === 0) { %>
+      <p class="empty-msg">Henüz bilgi eklenmedi. Yukarıdan ekleyebilirsin.</p>
+    <% } else { %>
+      <%
+        // Ders ders grupla
+        const notesBySubject = {};
+        for (const n of notes) {
+          if (!notesBySubject[n.subject]) notesBySubject[n.subject] = [];
+          notesBySubject[n.subject].push(n);
+        }
+      %>
+      <% Object.keys(notesBySubject).forEach(subj => { %>
+        <div class="subject-notes-block">
+          <h3 class="subject-notes-title">
+            <span class="subject-dot"></span>
+            <%= subj %>
+            <span class="subject-count">(<%= notesBySubject[subj].length %>)</span>
+          </h3>
+          <ul class="note-list">
+            <% notesBySubject[subj].forEach(n => { %>
+              <li class="note-item">
+                <div class="note-content">
+                  <% if (n.topic_name) { %>
+                    <span class="topic-tag">🏷 <%= n.topic_name %></span>
+                  <% } %>
+                  <span class="note-text"><%= n.content %></span>
+                </div>
+                <div class="note-meta">
+                  <small class="note-date"><%= (n.created_at || '').split(' ')[0] %></small>
+                  <form action="/admin/denemeler/notlar/sil" method="POST" class="inline-form">
+                    <input type="hidden" name="note_id" value="<%= n.id %>">
+                    <input type="hidden" name="exam_id" value="<%= exam.id %>">
+                    <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu bilgi silinsin mi?')">Sil</button>
+                  </form>
+                </div>
+              </li>
+            <% }); %>
+          </ul>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  // Ders seçince: konu dropdown'unu doldur ve target_exam_id'yi güncelle
+  const TOPICS_BY_SUBJECT = <%- JSON.stringify(topicsBySubject) %>;
+  const subjectSelect = document.getElementById('subjectSelect');
+  const topicSelect = document.getElementById('topicSelect');
+  const topicNew = document.getElementById('topicNew');
+  const targetExamId = document.getElementById('targetExamId');
+
+  function refreshTopics() {
+    const subj = subjectSelect.value;
+    const topics = TOPICS_BY_SUBJECT[subj] || [];
+    topicSelect.innerHTML = '<option value="">-- Varolan konulardan seç --</option>';
+    for (const t of topics) {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.name;
+      topicSelect.appendChild(opt);
+    }
+
+    // target_exam_id: composite ise alt ders kaydının id'sini kullan
+    const opt = subjectSelect.options[subjectSelect.selectedIndex];
+    const childId = opt ? opt.dataset.childId : '';
+    targetExamId.value = childId || '<%= exam.id %>';
+  }
+
+  // Yeni konu yazılırsa dropdown seçimini temizle (çakışmasın)
+  topicNew.addEventListener('input', function() {
+    if (this.value.trim()) topicSelect.value = '';
+  });
+  topicSelect.addEventListener('change', function() {
+    if (this.value) topicNew.value = '';
+  });
+
+  subjectSelect.addEventListener('change', refreshTopics);
+  refreshTopics();
+</script>
+
+<%- include('partials/footer') %>

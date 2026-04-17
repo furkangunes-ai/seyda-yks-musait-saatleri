@@ -47,6 +47,8 @@ function createBackup(manual = false) {
       categories: data.categories.length,
       time_slots: data.time_slots.length,
       exam_results: data.exam_results.length,
+      exam_topics: (data.exam_topics || []).length,
+      exam_notes: (data.exam_notes || []).length,
       meta: data.meta.length
     },
     data

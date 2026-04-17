@@ -367,6 +367,117 @@ app.post('/admin/denemeler/delete', requireAdmin, (req, res) => {
 });
 
 // ==========================================
+// DENEME NOTLARI (Öğrenilen Bilgiler)
+// ==========================================
+
+// Admin: tek bir denemenin notları (görüntüle + ekle)
+app.get('/admin/denemeler/:id/notlar', requireAdmin, (req, res) => {
+  const examId = parseInt(req.params.id);
+  const exam = db.getExamById(examId);
+
+  if (!exam) {
+    req.session.error = 'Deneme bulunamadı.';
+    return res.redirect('/admin/denemeler');
+  }
+
+  // Alt Branş kayıtlarının notlarını ana (parent) deneme üzerinden yönetelim.
+  if (exam.scope === 'Alt Branş' && exam.parent_id) {
+    return res.redirect('/admin/denemeler/' + exam.parent_id + '/notlar');
+  }
+
+  const subjects = db.getSubjectsForExam(exam);
+  const notes = db.getNotesForExamTree(exam);
+
+  // Her ders için varolan konu listesi (dropdown için)
+  const topicsBySubject = {};
+  for (const s of subjects) {
+    topicsBySubject[s.subject] = db.getTopicsBySubject(s.subject);
+  }
+
+  res.render('admin-deneme-notlar', {
+    exam,
+    subjects,
+    notes,
+    topicsBySubject
+  });
+});
+
+// Admin: not ekle
+app.post('/admin/denemeler/:id/notlar/ekle', requireAdmin, (req, res) => {
+  const examId = parseInt(req.params.id);
+  const exam = db.getExamById(examId);
+  if (!exam) {
+    req.session.error = 'Deneme bulunamadı.';
+    return res.redirect('/admin/denemeler');
+  }
+
+  const { subject, content, topic_select, topic_new, target_exam_id } = req.body;
+  const cleanContent = (content || '').trim();
+  const cleanSubject = (subject || '').trim();
+
+  if (!cleanContent || !cleanSubject) {
+    req.session.error = 'Ders ve bilgi metni zorunludur.';
+    return res.redirect('/admin/denemeler/' + examId + '/notlar');
+  }
+
+  // Konu belirle: yeni yazılmışsa onu kullan, yoksa seçilen varolan konu
+  let topicId = null;
+  const newTopic = (topic_new || '').trim();
+  if (newTopic) {
+    const topic = db.addOrGetTopic(newTopic, cleanSubject);
+    if (topic) topicId = topic.id;
+  } else if (topic_select && topic_select !== '') {
+    topicId = parseInt(topic_select) || null;
+  }
+
+  // Hangi exam_results kaydına bağlanacak? Composite ise alt ders kaydına;
+  // değilse ana kayda.
+  const attachTo = parseInt(target_exam_id) || examId;
+
+  db.addNote({
+    exam_id: attachTo,
+    subject: cleanSubject,
+    content: cleanContent,
+    topic_id: topicId
+  });
+
+  req.session.success = `${cleanSubject} dersi için bilgi eklendi.`;
+  res.redirect('/admin/denemeler/' + examId + '/notlar');
+});
+
+// Admin: not sil
+app.post('/admin/denemeler/notlar/sil', requireAdmin, (req, res) => {
+  const { note_id, exam_id } = req.body;
+  if (db.deleteNote(parseInt(note_id))) {
+    req.session.success = 'Bilgi silindi.';
+  } else {
+    req.session.error = 'Bilgi bulunamadı.';
+  }
+  res.redirect('/admin/denemeler/' + exam_id + '/notlar');
+});
+
+// Admin: tüm notlar (ders ders toplu görünüm)
+app.get('/admin/denemeler/notlar/tumu', requireAdmin, (req, res) => {
+  const grouped = db.getAllNotesGrouped();
+  const topics = db.getAllTopics();
+
+  // Konuları ders bazında grupla
+  const topicsBySubject = {};
+  for (const t of topics) {
+    if (!topicsBySubject[t.subject]) topicsBySubject[t.subject] = [];
+    topicsBySubject[t.subject].push(t);
+  }
+
+  const { subject } = req.query;
+
+  res.render('admin-tum-notlar', {
+    grouped,
+    topicsBySubject,
+    filterSubject: subject || ''
+  });
+});
+
+// ==========================================
 // YEDEKLEME ROTALARI
 // ==========================================
 
@@ -432,6 +543,8 @@ app.get('/admin/backups/export-now', requireAdmin, (req, res) => {
       categories: data.categories.length,
       time_slots: data.time_slots.length,
       exam_results: data.exam_results.length,
+      exam_topics: (data.exam_topics || []).length,
+      exam_notes: (data.exam_notes || []).length,
       meta: data.meta.length
     },
     data
