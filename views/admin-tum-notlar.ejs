@@ -1,0 +1,146 @@
+<%- include('partials/head', { title: "Tüm Notlar - Şeyda" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>📚 Tüm Deneme Notları</h1>
+        <p class="subtitle">Tüm denemelerden öğrendiğin bilgiler ders ders toplu görünüm.</p>
+      </div>
+      <div class="nav-buttons">
+        <a href="/admin/denemeler" class="btn btn-secondary">← Denemeler</a>
+      </div>
+    </div>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <% const allSubjects = Object.keys(grouped).sort(); %>
+  <% const totalNotes = allSubjects.reduce((s, k) => s + grouped[k].length, 0); %>
+
+  <!-- İstatistik -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-number"><%= totalNotes %></span>
+      <span class="stat-label">Toplam Bilgi</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number"><%= allSubjects.length %></span>
+      <span class="stat-label">Ders</span>
+    </div>
+  </div>
+
+  <% if (allSubjects.length === 0) { %>
+    <div class="section-card">
+      <p class="empty-msg">Henüz not eklenmedi. Bir denemeye gir ve "📝 Notlar" butonuna tıklayarak bilgi ekleyebilirsin.</p>
+    </div>
+  <% } else { %>
+    <!-- Ders seçici sekmeler -->
+    <div class="section-card">
+      <h2>Ders Seç</h2>
+      <div class="subject-tabs">
+        <a href="/admin/denemeler/notlar/tumu" class="subject-tab <%= filterSubject === '' ? 'active' : '' %>">
+          Tümü (<%= totalNotes %>)
+        </a>
+        <% allSubjects.forEach(subj => { %>
+          <a href="/admin/denemeler/notlar/tumu?subject=<%= encodeURIComponent(subj) %>"
+             class="subject-tab <%= filterSubject === subj ? 'active' : '' %>">
+            <%= subj %> (<%= grouped[subj].length %>)
+          </a>
+        <% }); %>
+      </div>
+    </div>
+
+    <!-- Notları render et -->
+    <% const visibleSubjects = filterSubject ? [filterSubject] : allSubjects; %>
+    <% visibleSubjects.forEach(subj => { %>
+      <% if (!grouped[subj]) return; %>
+      <div class="section-card">
+        <h2 class="subject-section-title">
+          <span class="subject-dot"></span>
+          <%= subj %>
+          <span class="subject-count">(<%= grouped[subj].length %> bilgi)</span>
+        </h2>
+
+        <%
+          // Konuya göre grupla (konusuz olanlar ayrı)
+          const byTopic = {};
+          const noTopic = [];
+          for (const n of grouped[subj]) {
+            if (n.topic_name) {
+              if (!byTopic[n.topic_name]) byTopic[n.topic_name] = [];
+              byTopic[n.topic_name].push(n);
+            } else {
+              noTopic.push(n);
+            }
+          }
+          const topicNames = Object.keys(byTopic).sort();
+        %>
+
+        <% if (topicsBySubject[subj] && topicsBySubject[subj].length > 0) { %>
+          <div class="topic-chips">
+            <strong class="chips-label">Konular:</strong>
+            <% topicsBySubject[subj].forEach(t => { %>
+              <span class="topic-chip"><%= t.name %></span>
+            <% }); %>
+          </div>
+        <% } %>
+
+        <% topicNames.forEach(topic => { %>
+          <div class="topic-block">
+            <h3 class="topic-block-title">🏷 <%= topic %> <small>(<%= byTopic[topic].length %>)</small></h3>
+            <ul class="note-list">
+              <% byTopic[topic].forEach(n => { %>
+                <li class="note-item">
+                  <div class="note-content">
+                    <span class="note-text"><%= n.content %></span>
+                  </div>
+                  <div class="note-meta">
+                    <small class="note-source">
+                      <%= n.exam_date %> · <%= n.exam_type %>
+                      <% if (n.parent_subject) { %>
+                        · <%= n.parent_subject %> içi
+                      <% } %>
+                    </small>
+                    <a href="/admin/denemeler/<%= n.parent_id || n.exam_id %>/notlar" class="btn btn-tiny btn-secondary">Git</a>
+                  </div>
+                </li>
+              <% }); %>
+            </ul>
+          </div>
+        <% }); %>
+
+        <% if (noTopic.length > 0) { %>
+          <div class="topic-block">
+            <h3 class="topic-block-title topic-no-tag">— Konu etiketsiz <small>(<%= noTopic.length %>)</small></h3>
+            <ul class="note-list">
+              <% noTopic.forEach(n => { %>
+                <li class="note-item">
+                  <div class="note-content">
+                    <span class="note-text"><%= n.content %></span>
+                  </div>
+                  <div class="note-meta">
+                    <small class="note-source">
+                      <%= n.exam_date %> · <%= n.exam_type %>
+                      <% if (n.parent_subject) { %>
+                        · <%= n.parent_subject %> içi
+                      <% } %>
+                    </small>
+                    <a href="/admin/denemeler/<%= n.parent_id || n.exam_id %>/notlar" class="btn btn-tiny btn-secondary">Git</a>
+                  </div>
+                </li>
+              <% }); %>
+            </ul>
+          </div>
+        <% } %>
+      </div>
+    <% }); %>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>

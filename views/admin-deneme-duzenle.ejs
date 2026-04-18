@@ -1,0 +1,177 @@
+<%- include('partials/head', { title: "Deneme Düzenle - Şeyda" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>✏ Deneme Düzenle</h1>
+        <p class="subtitle">Denemenin doğru / yanlış / boş sayılarını ve tarihini güncelle. Net otomatik yeniden hesaplanır.</p>
+      </div>
+      <div class="nav-buttons">
+        <a href="/admin/denemeler" class="btn btn-secondary">← Denemeler</a>
+        <a href="/admin/denemeler/<%= exam.id %>/notlar" class="btn btn-secondary">📝 Notlar</a>
+      </div>
+    </div>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <div class="section-card">
+    <h2><%= exam.exam_type %> · <%= exam.scope %> · <%= exam.subject %></h2>
+    <p class="section-desc">
+      <% if (isComposite) { %>
+        Bu composite bir deneme. Her alt dersin doğru/yanlış/boş sayılarını ayrı ayrı değiştirebilirsin.
+        Toplamlar otomatik hesaplanır.
+      <% } else { %>
+        Tek ders denemesi. Doğru/yanlış/boş sayılarını değiştirebilirsin.
+      <% } %>
+    </p>
+
+    <form action="/admin/denemeler/<%= exam.id %>/duzenle" method="POST" class="exam-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tarih *</label>
+          <input type="date" name="exam_date" required value="<%= exam.exam_date %>">
+        </div>
+        <div class="form-group">
+          <label>Sınav Türü</label>
+          <input type="text" value="<%= exam.exam_type %>" readonly class="readonly-input">
+        </div>
+        <div class="form-group">
+          <label>Kapsam</label>
+          <input type="text" value="<%= exam.scope %>" readonly class="readonly-input">
+        </div>
+        <div class="form-group">
+          <label>Ders / Alan</label>
+          <input type="text" value="<%= exam.subject %>" readonly class="readonly-input">
+        </div>
+      </div>
+
+      <% if (isComposite && children.length > 0) { %>
+        <div class="breakdown-header">
+          <h3>Alt Derslerin Sonuçları</h3>
+        </div>
+        <div id="breakdownContainer">
+          <% children.forEach(child => { %>
+            <div class="breakdown-row" data-child-id="<%= child.id %>">
+              <div class="breakdown-label">
+                <strong><%= child.subject %></strong>
+              </div>
+              <div class="breakdown-inputs">
+                <input type="number" name="breakdown[<%= child.id %>][correct]" min="0" placeholder="Doğru" class="bd-correct" value="<%= child.correct %>" required>
+                <input type="number" name="breakdown[<%= child.id %>][wrong]" min="0" placeholder="Yanlış" class="bd-wrong" value="<%= child.wrong %>" required>
+                <input type="number" name="breakdown[<%= child.id %>][empty]" min="0" placeholder="Boş" class="bd-empty" value="<%= child.empty %>" required>
+                <input type="text" readonly placeholder="Net" class="bd-net readonly-input" value="<%= child.net.toFixed(2) %>">
+              </div>
+            </div>
+          <% }); %>
+        </div>
+        <div class="breakdown-totals">
+          <div class="total-box">
+            <span class="total-label">Toplam Doğru</span>
+            <span id="totalCorrect" class="total-value"><%= exam.correct %></span>
+          </div>
+          <div class="total-box">
+            <span class="total-label">Toplam Yanlış</span>
+            <span id="totalWrong" class="total-value"><%= exam.wrong %></span>
+          </div>
+          <div class="total-box">
+            <span class="total-label">Toplam Boş</span>
+            <span id="totalEmpty" class="total-value"><%= exam.empty %></span>
+          </div>
+          <div class="total-box">
+            <span class="total-label">Toplam Net</span>
+            <span id="totalNet" class="total-value total-net"><%= exam.net.toFixed(2) %></span>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Doğru</label>
+            <input type="number" name="correct" id="correctInput" min="0" value="<%= exam.correct %>" required>
+          </div>
+          <div class="form-group">
+            <label>Yanlış</label>
+            <input type="number" name="wrong" id="wrongInput" min="0" value="<%= exam.wrong %>" required>
+          </div>
+          <div class="form-group">
+            <label>Boş</label>
+            <input type="number" name="empty" id="emptyInput" min="0" value="<%= exam.empty %>" required>
+          </div>
+          <div class="form-group">
+            <label>Net (otomatik)</label>
+            <input type="text" id="netDisplay" readonly value="<%= exam.net.toFixed(2) %>" class="readonly-input">
+          </div>
+        </div>
+      <% } %>
+
+      <div class="form-row">
+        <div class="form-group form-group-full">
+          <label>Notlar (opsiyonel)</label>
+          <input type="text" name="notes" placeholder="Örn: Limit Yayınları 12. deneme" value="<%= exam.notes || '' %>">
+        </div>
+      </div>
+
+      <div class="edit-actions">
+        <button type="submit" class="btn btn-primary">Değişiklikleri Kaydet</button>
+        <a href="/admin/denemeler" class="btn btn-secondary">İptal</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Tek ders: net otomatik güncelle
+  const correctInput = document.getElementById('correctInput');
+  const wrongInput = document.getElementById('wrongInput');
+  const emptyInput = document.getElementById('emptyInput');
+  const netDisplay = document.getElementById('netDisplay');
+
+  function recalcSimple() {
+    const c = parseInt(correctInput.value) || 0;
+    const w = parseInt(wrongInput.value) || 0;
+    const net = Math.max(0, c - w / 4);
+    netDisplay.value = net.toFixed(2);
+  }
+  if (correctInput && wrongInput) {
+    correctInput.addEventListener('input', recalcSimple);
+    wrongInput.addEventListener('input', recalcSimple);
+  }
+
+  // Composite: her satır + toplam net otomatik güncelle
+  const container = document.getElementById('breakdownContainer');
+  function updateRow(row) {
+    const c = parseInt(row.querySelector('.bd-correct').value) || 0;
+    const w = parseInt(row.querySelector('.bd-wrong').value) || 0;
+    const net = Math.max(0, c - w / 4);
+    row.querySelector('.bd-net').value = net.toFixed(2);
+  }
+  function updateTotals() {
+    let tc = 0, tw = 0, te = 0, tn = 0;
+    container.querySelectorAll('.breakdown-row').forEach(row => {
+      const c = parseInt(row.querySelector('.bd-correct').value) || 0;
+      const w = parseInt(row.querySelector('.bd-wrong').value) || 0;
+      const e = parseInt(row.querySelector('.bd-empty').value) || 0;
+      tc += c; tw += w; te += e;
+      tn += Math.max(0, c - w / 4);
+    });
+    document.getElementById('totalCorrect').textContent = tc;
+    document.getElementById('totalWrong').textContent = tw;
+    document.getElementById('totalEmpty').textContent = te;
+    document.getElementById('totalNet').textContent = tn.toFixed(2);
+  }
+  if (container) {
+    container.querySelectorAll('.breakdown-row').forEach(row => {
+      row.querySelectorAll('input[type="number"]').forEach(inp => {
+        inp.addEventListener('input', () => { updateRow(row); updateTotals(); });
+      });
+    });
+  }
+</script>
+
+<%- include('partials/footer') %>
