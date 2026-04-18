@@ -445,6 +445,34 @@ app.post('/admin/denemeler/:id/notlar/ekle', requireAdmin, (req, res) => {
   res.redirect('/admin/denemeler/' + examId + '/notlar');
 });
 
+// Admin: not düzenle (içerik + konu)
+app.post('/admin/denemeler/notlar/duzenle', requireAdmin, (req, res) => {
+  const { note_id, exam_id, subject, content, topic_select, topic_new } = req.body;
+  const cleanContent = (content || '').trim();
+  const cleanSubject = (subject || '').trim();
+
+  if (!cleanContent) {
+    req.session.error = 'Bilgi metni boş olamaz.';
+    return res.redirect('/admin/denemeler/' + exam_id + '/notlar');
+  }
+
+  let topicId = null;
+  const newTopic = (topic_new || '').trim();
+  if (newTopic && cleanSubject) {
+    const topic = db.addOrGetTopic(newTopic, cleanSubject);
+    if (topic) topicId = topic.id;
+  } else if (topic_select && topic_select !== '') {
+    topicId = parseInt(topic_select) || null;
+  }
+
+  if (db.updateNote(parseInt(note_id), { content: cleanContent, topic_id: topicId })) {
+    req.session.success = 'Bilgi güncellendi.';
+  } else {
+    req.session.error = 'Bilgi bulunamadı.';
+  }
+  res.redirect('/admin/denemeler/' + exam_id + '/notlar');
+});
+
 // Admin: not sil
 app.post('/admin/denemeler/notlar/sil', requireAdmin, (req, res) => {
   const { note_id, exam_id } = req.body;

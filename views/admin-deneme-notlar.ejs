@@ -127,21 +127,53 @@
           </h3>
           <ul class="note-list">
             <% notesBySubject[subj].forEach(n => { %>
-              <li class="note-item">
-                <div class="note-content">
-                  <% if (n.topic_name) { %>
-                    <span class="topic-tag">🏷 <%= n.topic_name %></span>
-                  <% } %>
-                  <span class="note-text"><%= n.content %></span>
+              <li class="note-item" id="note-<%= n.id %>">
+                <!-- Görüntüleme modu -->
+                <div class="note-view">
+                  <div class="note-content">
+                    <% if (n.topic_name) { %>
+                      <span class="topic-tag">🏷 <%= n.topic_name %></span>
+                    <% } %>
+                    <span class="note-text"><%= n.content %></span>
+                  </div>
+                  <div class="note-meta">
+                    <small class="note-date"><%= (n.created_at || '').split(' ')[0] %></small>
+                    <button type="button" class="btn btn-tiny btn-edit" onclick="toggleEdit(<%= n.id %>)">✏ Düzenle</button>
+                    <form action="/admin/denemeler/notlar/sil" method="POST" class="inline-form">
+                      <input type="hidden" name="note_id" value="<%= n.id %>">
+                      <input type="hidden" name="exam_id" value="<%= exam.id %>">
+                      <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu bilgi silinsin mi?')">Sil</button>
+                    </form>
+                  </div>
                 </div>
-                <div class="note-meta">
-                  <small class="note-date"><%= (n.created_at || '').split(' ')[0] %></small>
-                  <form action="/admin/denemeler/notlar/sil" method="POST" class="inline-form">
-                    <input type="hidden" name="note_id" value="<%= n.id %>">
-                    <input type="hidden" name="exam_id" value="<%= exam.id %>">
-                    <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu bilgi silinsin mi?')">Sil</button>
-                  </form>
-                </div>
+
+                <!-- Düzenleme modu (varsayılan gizli) -->
+                <form action="/admin/denemeler/notlar/duzenle" method="POST" class="note-edit hidden">
+                  <input type="hidden" name="note_id" value="<%= n.id %>">
+                  <input type="hidden" name="exam_id" value="<%= exam.id %>">
+                  <input type="hidden" name="subject" value="<%= n.subject %>">
+
+                  <textarea name="content" rows="3" required><%= n.content %></textarea>
+
+                  <div class="edit-topic-row">
+                    <label class="edit-label">Konu:</label>
+                    <select name="topic_select" class="edit-topic-select">
+                      <option value="">-- Konu yok --</option>
+                      <% (topicsBySubject[n.subject] || []).forEach(t => { %>
+                        <option value="<%= t.id %>" <%= n.topic_id === t.id ? 'selected' : '' %>>
+                          <%= t.name %>
+                        </option>
+                      <% }); %>
+                    </select>
+                    <span class="topic-or">veya</span>
+                    <input type="text" name="topic_new" placeholder="Yeni konu adı" maxlength="100" class="edit-topic-new">
+                  </div>
+
+                  <div class="edit-actions">
+                    <button type="submit" class="btn btn-tiny btn-primary">Kaydet</button>
+                    <button type="button" class="btn btn-tiny btn-secondary" onclick="toggleEdit(<%= n.id %>)">İptal</button>
+                  </div>
+                </form>
               </li>
             <% }); %>
           </ul>
@@ -186,6 +218,24 @@
 
   subjectSelect.addEventListener('change', refreshTopics);
   refreshTopics();
+
+  // Not düzenleme toggle
+  function toggleEdit(noteId) {
+    const li = document.getElementById('note-' + noteId);
+    if (!li) return;
+    li.querySelector('.note-view').classList.toggle('hidden');
+    li.querySelector('.note-edit').classList.toggle('hidden');
+  }
+  window.toggleEdit = toggleEdit;
+
+  // Her düzenleme formunda: yeni konu yazılırsa seçim sıfırlansın, tersi de
+  document.querySelectorAll('.note-edit').forEach(form => {
+    const sel = form.querySelector('.edit-topic-select');
+    const inp = form.querySelector('.edit-topic-new');
+    if (!sel || !inp) return;
+    inp.addEventListener('input', () => { if (inp.value.trim()) sel.value = ''; });
+    sel.addEventListener('change', () => { if (sel.value) inp.value = ''; });
+  });
 </script>
 
 <%- include('partials/footer') %>

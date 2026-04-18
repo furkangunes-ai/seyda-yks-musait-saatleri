@@ -558,6 +558,14 @@ function addNote({ exam_id, subject, content, topic_id }) {
   `).run(exam_id, subject, content, topic_id || null);
 }
 
+function updateNote(id, { content, topic_id }) {
+  return db.prepare(`
+    UPDATE exam_notes
+    SET content = ?, topic_id = ?
+    WHERE id = ?
+  `).run(content, topic_id || null, id).changes > 0;
+}
+
 function deleteNote(id) {
   return db.prepare('DELETE FROM exam_notes WHERE id = ?').run(id).changes > 0;
 }
@@ -659,6 +667,7 @@ module.exports = {
   getNotesByExam,
   getNotesForExamTree,
   addNote,
+  updateNote,
   deleteNote,
   addOrGetTopic,
   getTopicsBySubject,
