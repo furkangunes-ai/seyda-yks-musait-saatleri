@@ -451,6 +451,62 @@ function getAllExams() {
   return db.prepare('SELECT * FROM exam_results ORDER BY exam_date DESC, id DESC').all();
 }
 
+// Bir ana (parent) denemenin alt ders kayıtlarını döner (id sırayla)
+function getChildExams(parentId) {
+  return db.prepare(
+    'SELECT * FROM exam_results WHERE parent_id = ? ORDER BY id ASC'
+  ).all(parentId);
+}
+
+// Bir exam kaydını günceller. Net otomatik yeniden hesaplanır.
+function updateExam(id, data) {
+  const correct = parseInt(data.correct) || 0;
+  const wrong = parseInt(data.wrong) || 0;
+  const empty = parseInt(data.empty) || 0;
+  const net = Math.max(0, correct - wrong / 4);
+
+  return db.prepare(`
+    UPDATE exam_results
+    SET exam_date = ?, correct = ?, wrong = ?, empty = ?, net = ?, notes = ?
+    WHERE id = ?
+  `).run(
+    data.exam_date,
+    correct, wrong, empty, net,
+    data.notes || null,
+    id
+  ).changes > 0;
+}
+
+// Composite denemeyi (parent + alt ders kayıtlarını) güncelle.
+// subItems: [{ child_id, correct, wrong, empty }]
+function updateExamWithBreakdown(parentId, { exam_date, notes, subItems }) {
+  const tx = db.transaction(() => {
+    let totalC = 0, totalW = 0, totalE = 0;
+    for (const s of subItems) {
+      const c = parseInt(s.correct) || 0;
+      const w = parseInt(s.wrong) || 0;
+      const e = parseInt(s.empty) || 0;
+      const net = Math.max(0, c - w / 4);
+      totalC += c; totalW += w; totalE += e;
+
+      db.prepare(`
+        UPDATE exam_results
+        SET exam_date = ?, correct = ?, wrong = ?, empty = ?, net = ?
+        WHERE id = ? AND parent_id = ?
+      `).run(exam_date, c, w, e, net, s.child_id, parentId);
+    }
+
+    const parentNet = Math.max(0, totalC - totalW / 4);
+    db.prepare(`
+      UPDATE exam_results
+      SET exam_date = ?, correct = ?, wrong = ?, empty = ?, net = ?, notes = ?
+      WHERE id = ?
+    `).run(exam_date, totalC, totalW, totalE, parentNet, notes || null, parentId);
+  });
+  tx();
+  return true;
+}
+
 function getExamsByFilter(examType, scope, subject) {
   let query = 'SELECT * FROM exam_results WHERE 1=1';
   const params = [];
@@ -658,6 +714,9 @@ module.exports = {
   addCategory,
   deleteCategory,
   addExam,
+  updateExam,
+  updateExamWithBreakdown,
+  getChildExams,
   getAllExams,
   getExamsByFilter,
   deleteExam,

@@ -268,6 +268,7 @@
                 <td class="row-actions">
                   <a href="/admin/denemeler/<%= notesTargetId %>/notlar" class="btn btn-tiny btn-notes" title="Öğrenilen bilgiler">📝 Notlar</a>
                   <% if (!isSubRecord) { %>
+                    <a href="/admin/denemeler/<%= e.id %>/duzenle" class="btn btn-tiny btn-edit" title="Denemeyi düzenle">✏ Düzenle</a>
                     <form action="/admin/denemeler/delete" method="POST" class="inline-form">
                       <input type="hidden" name="id" value="<%= e.id %>">
                       <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu deneme silinsin mi?')">Sil</button>

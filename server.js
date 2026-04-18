@@ -366,6 +366,79 @@ app.post('/admin/denemeler/delete', requireAdmin, (req, res) => {
   res.redirect('/admin/denemeler');
 });
 
+// Admin: deneme düzenleme sayfası
+app.get('/admin/denemeler/:id/duzenle', requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id);
+  const exam = db.getExamById(id);
+
+  if (!exam) {
+    req.session.error = 'Deneme bulunamadı.';
+    return res.redirect('/admin/denemeler');
+  }
+
+  // Alt Branş kaydı düzenlenemez — ana (parent) denemeye yönlendir
+  if (exam.scope === 'Alt Branş' && exam.parent_id) {
+    return res.redirect('/admin/denemeler/' + exam.parent_id + '/duzenle');
+  }
+
+  const isComposite = exam.scope === 'Genel' || exam.scope === 'Alan';
+  const children = isComposite ? db.getChildExams(id) : [];
+
+  res.render('admin-deneme-duzenle', {
+    exam,
+    children,
+    isComposite
+  });
+});
+
+// Admin: deneme güncelle
+app.post('/admin/denemeler/:id/duzenle', requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id);
+  const exam = db.getExamById(id);
+
+  if (!exam) {
+    req.session.error = 'Deneme bulunamadı.';
+    return res.redirect('/admin/denemeler');
+  }
+
+  const { exam_date, notes, correct, wrong, empty, breakdown } = req.body;
+
+  if (!exam_date) {
+    req.session.error = 'Tarih zorunludur.';
+    return res.redirect('/admin/denemeler/' + id + '/duzenle');
+  }
+
+  const isComposite = exam.scope === 'Genel' || exam.scope === 'Alan';
+
+  if (isComposite && breakdown && typeof breakdown === 'object') {
+    const subItems = [];
+    for (const childIdStr of Object.keys(breakdown)) {
+      const b = breakdown[childIdStr];
+      const c = parseInt(b.correct) || 0;
+      const w = parseInt(b.wrong) || 0;
+      const e = parseInt(b.empty) || 0;
+      if (c < 0 || w < 0 || e < 0) {
+        req.session.error = 'Negatif değer girilemez.';
+        return res.redirect('/admin/denemeler/' + id + '/duzenle');
+      }
+      subItems.push({ child_id: parseInt(childIdStr), correct: c, wrong: w, empty: e });
+    }
+    db.updateExamWithBreakdown(id, { exam_date, notes, subItems });
+  } else {
+    const c = parseInt(correct) || 0;
+    const w = parseInt(wrong) || 0;
+    const e = parseInt(empty) || 0;
+    if (c < 0 || w < 0 || e < 0) {
+      req.session.error = 'Negatif değer girilemez.';
+      return res.redirect('/admin/denemeler/' + id + '/duzenle');
+    }
+    db.updateExam(id, { exam_date, correct: c, wrong: w, empty: e, notes });
+  }
+
+  req.session.success = 'Deneme güncellendi.';
+  res.redirect('/admin/denemeler');
+});
+
 // ==========================================
 // DENEME NOTLARI (Öğrenilen Bilgiler)
 // ==========================================
