@@ -60,7 +60,7 @@
       <li>✅ <strong>Kalıcı depolama:</strong> Yedekler Railway volume'unda (<code><%= stats.backupDir %></code>) tutulur, deploy'larda silinmez.</li>
       <li>✅ <strong>İndir:</strong> Her yedeği JSON olarak indirebilirsin — bilgisayarına arşiv olarak kaydet.</li>
       <li>✅ <strong>Otomatik temizlik:</strong> 60 günden eski yedekler otomatik silinir (disk yormamak için).</li>
-      <li>ℹ <strong>İçerik:</strong> Öğretmenler, kategoriler, ders programı slotları, tüm denemeler ve meta veriler.</li>
+      <li>ℹ <strong>İçerik:</strong> Öğretmenler, kategoriler, ders programı slotları, tüm denemeler, deneme notları, konular ve meta veriler.</li>
     </ul>
   </div>
 
@@ -107,6 +107,7 @@
                     📝 <%= b.counts.exam_results %> deneme ·
                     👤 <%= b.counts.teachers %> öğretmen ·
                     📅 <%= b.counts.time_slots %> slot
+                    <% if (b.counts.exam_notes) { %> · 🗒 <%= b.counts.exam_notes %> not<% } %>
                   </span>
                 <% } %>
               </div>

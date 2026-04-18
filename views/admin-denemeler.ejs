@@ -9,6 +9,7 @@
       </div>
       <div class="nav-buttons">
         <a href="/admin" class="btn btn-secondary">← Ders Programı</a>
+        <a href="/admin/denemeler/notlar/tumu" class="btn btn-secondary">📚 Tüm Notlar</a>
         <a href="/admin/backups" class="btn btn-secondary">💾 Yedekler</a>
         <form action="/admin/logout" method="POST" style="display:inline">
           <button type="submit" class="btn btn-secondary">Çıkış</button>
@@ -235,12 +236,13 @@
               <th>Boş</th>
               <th>Net</th>
               <th>Not</th>
-              <th>Sil</th>
+              <th>İşlem</th>
             </tr>
           </thead>
           <tbody>
             <% for (const e of exams) { %>
               <% const isSubRecord = e.scope === 'Alt Branş'; %>
+              <% const notesTargetId = isSubRecord && e.parent_id ? e.parent_id : e.id; %>
               <tr class="<%= isSubRecord ? 'sub-row' : 'main-row' %>">
                 <td><%= e.exam_date %></td>
                 <td><span class="exam-badge exam-badge-<%= e.exam_type.toLowerCase() %>"><%= e.exam_type %></span></td>
@@ -263,11 +265,15 @@
                 <td><%= e.empty %></td>
                 <td><strong class="net-value"><%= e.net.toFixed(2) %></strong></td>
                 <td><small><%= e.notes || '-' %></small></td>
-                <td>
-                  <form action="/admin/denemeler/delete" method="POST" class="inline-form">
-                    <input type="hidden" name="id" value="<%= e.id %>">
-                    <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu deneme silinsin mi?')">Sil</button>
-                  </form>
+                <td class="row-actions">
+                  <a href="/admin/denemeler/<%= notesTargetId %>/notlar" class="btn btn-tiny btn-notes" title="Öğrenilen bilgiler">📝 Notlar</a>
+                  <% if (!isSubRecord) { %>
+                    <a href="/admin/denemeler/<%= e.id %>/duzenle" class="btn btn-tiny btn-edit" title="Denemeyi düzenle">✏ Düzenle</a>
+                    <form action="/admin/denemeler/delete" method="POST" class="inline-form">
+                      <input type="hidden" name="id" value="<%= e.id %>">
+                      <button type="submit" class="btn btn-tiny btn-danger" onclick="return confirm('Bu deneme silinsin mi?')">Sil</button>
+                    </form>
+                  <% } %>
                 </td>
               </tr>
             <% } %>

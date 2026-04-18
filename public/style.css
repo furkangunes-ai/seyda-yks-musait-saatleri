@@ -1806,3 +1806,375 @@ footer {
     padding: 4px 2px;
   }
 }
+
+/* ==========================================
+   DENEME NOTLARI
+   ========================================== */
+
+.hidden {
+  display: none !important;
+}
+
+.btn-notes {
+  background: #06a77d;
+  color: white;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-notes:hover {
+  background: #05885f;
+}
+
+.btn-edit {
+  background: #4361ee;
+  color: white;
+}
+.btn-edit:hover {
+  background: #3a56d4;
+}
+
+/* Düzenleme formu (not altında inline) */
+.note-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.note-edit textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #4361ee;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.note-edit textarea:focus {
+  outline: none;
+  border-color: #3a56d4;
+}
+
+.edit-topic-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.edit-label {
+  font-size: 0.85rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.edit-topic-select,
+.edit-topic-new {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.edit-topic-select:focus,
+.edit-topic-new:focus {
+  outline: none;
+  border-color: #4361ee;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.note-view {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.exam-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  background: #f8f9fb;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e6e8ef;
+}
+
+.es-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.es-item-full {
+  grid-column: 1 / -1;
+}
+
+.es-label {
+  font-size: 0.75rem;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.es-value {
+  font-size: 0.95rem;
+  color: #222;
+}
+
+/* Not ekleme formu */
+.note-add-form textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+.note-add-form textarea:focus {
+  outline: none;
+  border-color: #06a77d;
+}
+
+.form-group-topic .topic-inputs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.form-group-topic .topic-inputs select,
+.form-group-topic .topic-inputs input {
+  flex: 1 1 180px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.form-group-topic .topic-inputs select:focus,
+.form-group-topic .topic-inputs input:focus {
+  outline: none;
+  border-color: #06a77d;
+}
+.topic-or {
+  color: #888;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+.topic-hint {
+  display: block;
+  margin-top: 6px;
+  color: #888;
+  font-size: 0.8rem;
+}
+
+/* Not listesi */
+.subject-notes-block {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #fafbfd;
+  border-radius: 10px;
+  border-left: 4px solid #06a77d;
+}
+
+.subject-notes-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1a1a2e;
+  font-size: 1.05rem;
+  margin-bottom: 12px;
+}
+
+.subject-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #06a77d;
+}
+
+.subject-count {
+  color: #888;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.note-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-item {
+  background: white;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #e6e8ef;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.note-text {
+  color: #222;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.topic-tag {
+  display: inline-block;
+  background: #e8f5f1;
+  color: #06a77d;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.note-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.note-date, .note-source {
+  color: #888;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* Toplu görünüm */
+.subject-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.subject-tab {
+  display: inline-block;
+  padding: 8px 14px;
+  background: #f0f2f5;
+  color: #444;
+  border-radius: 20px;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.subject-tab:hover {
+  background: #e4e8ef;
+}
+
+.subject-tab.active {
+  background: #06a77d;
+  color: white;
+  border-color: #05885f;
+}
+
+.subject-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #1a1a2e;
+}
+
+.topic-chips {
+  background: #f8f9fb;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chips-label {
+  font-size: 0.85rem;
+  color: #555;
+  margin-right: 4px;
+}
+
+.topic-chip {
+  display: inline-block;
+  background: white;
+  color: #06a77d;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  border: 1px solid #c8e6dc;
+  font-weight: 500;
+}
+
+.topic-block {
+  margin-bottom: 20px;
+  padding-left: 12px;
+  border-left: 3px solid #e0e0e0;
+}
+
+.topic-block-title {
+  color: #06a77d;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.topic-block-title.topic-no-tag {
+  color: #888;
+  font-style: italic;
+}
+
+.topic-block-title small {
+  color: #888;
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 720px) {
+  .note-view {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .note-meta {
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-end;
+    flex-wrap: wrap;
+  }
+}
