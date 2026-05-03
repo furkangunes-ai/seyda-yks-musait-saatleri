@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const db = require('./db');
 const backup = require('./backup');
@@ -29,6 +30,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'default-secret-change-me',
@@ -579,6 +581,148 @@ app.get('/admin/denemeler/notlar/tumu', requireAdmin, (req, res) => {
 });
 
 // ==========================================
+// İNTERAKTİF DERS SAYFALARI
+// ==========================================
+
+// Ders listesi sayfası
+app.get('/admin/dersler', requireAdmin, (req, res) => {
+  const courses = db.getAllCourses();
+  res.render('admin-dersler', { courses });
+});
+
+// Tek bir dersin sayfası — HTML'i okur, içine state injection script enjekte eder
+app.get('/admin/dersler/:slug', requireAdmin, (req, res) => {
+  const course = db.getCourseBySlug(req.params.slug);
+  if (!course) {
+    req.session.error = 'Ders bulunamadı.';
+    return res.redirect('/admin/dersler');
+  }
+
+  const filePath = path.join(__dirname, 'views', 'dersler', course.file + '.html');
+  if (!fs.existsSync(filePath)) {
+    req.session.error = `Ders dosyası bulunamadı: ${course.file}.html`;
+    return res.redirect('/admin/dersler');
+  }
+
+  let html = fs.readFileSync(filePath, 'utf8');
+  const initialState = db.getCourseState(course.slug);
+
+  // Sayfanın localStorage çağrılarını sunucuya yönlendiren ve sunucudan gelen
+  // state'i en başta localStorage'a yükleyen küçük bir script. <head>'in hemen
+  // sonrasına ekliyoruz ki sayfanın kendi script'i çalışmadan ÖNCE devreye girsin.
+  const slug = course.slug;
+  const initialJSON = JSON.stringify(initialState);
+  const persistenceScript = `
+<script>
+(function() {
+  var COURSE_SLUG = ${JSON.stringify(slug)};
+  var INITIAL = ${initialJSON};
+  var origGet = localStorage.getItem.bind(localStorage);
+  var origSet = localStorage.setItem.bind(localStorage);
+  var origRemove = localStorage.removeItem.bind(localStorage);
+
+  // Sunucudan gelen değerleri localStorage'a yükle (sayfa script'i okumadan önce)
+  try {
+    for (var k in INITIAL) {
+      if (Object.prototype.hasOwnProperty.call(INITIAL, k)) {
+        origSet(k, INITIAL[k]);
+      }
+    }
+  } catch (e) { console.warn('initial state load failed', e); }
+
+  // Sunucuya kaydetme — debounce ile çoklu yazımları topla
+  var pending = {};
+  var timer = null;
+  function flush() {
+    var batch = pending;
+    pending = {};
+    timer = null;
+    for (var key in batch) {
+      if (!Object.prototype.hasOwnProperty.call(batch, key)) continue;
+      (function(k, v) {
+        try {
+          fetch('/admin/dersler/' + COURSE_SLUG + '/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: k, value: v })
+          }).catch(function(err) { console.warn('state save failed', err); });
+        } catch (e) { console.warn('state save threw', e); }
+      })(key, batch[key]);
+    }
+  }
+  function schedule(key, value) {
+    pending[key] = value;
+    if (!timer) timer = setTimeout(flush, 250);
+  }
+
+  localStorage.setItem = function(key, value) {
+    origSet(key, value);
+    schedule(key, value);
+  };
+  localStorage.removeItem = function(key) {
+    origRemove(key);
+    // null gönderirsek sunucuda da silinir
+    schedule(key, null);
+  };
+
+  // Sayfa kapanırken bekleyen yazımları gönder
+  window.addEventListener('beforeunload', function() {
+    if (Object.keys(pending).length > 0) {
+      try {
+        var blob = new Blob([JSON.stringify({ batch: pending })], { type: 'application/json' });
+        navigator.sendBeacon('/admin/dersler/' + COURSE_SLUG + '/state', blob);
+      } catch (e) {}
+    }
+  });
+})();
+</script>
+`;
+
+  // <head> tag'inin hemen sonrasına yerleştir (open <head> bulunamazsa <body>'den önce)
+  if (/<head[^>]*>/i.test(html)) {
+    html = html.replace(/<head[^>]*>/i, function(m) { return m + persistenceScript; });
+  } else {
+    html = persistenceScript + html;
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
+});
+
+// State kaydet (single key veya batch)
+app.post('/admin/dersler/:slug/state', requireAdmin, (req, res) => {
+  const course = db.getCourseBySlug(req.params.slug);
+  if (!course) return res.status(404).json({ ok: false, error: 'course_not_found' });
+
+  const body = req.body || {};
+
+  // sendBeacon ile gelen batch
+  if (body.batch && typeof body.batch === 'object') {
+    for (const k of Object.keys(body.batch)) {
+      const v = body.batch[k];
+      if (v === null) {
+        db.deleteCourseStateKey(course.slug, k);
+      } else {
+        db.setCourseStateKey(course.slug, k, String(v));
+      }
+    }
+    return res.json({ ok: true });
+  }
+
+  // Tek key
+  const { key, value } = body;
+  if (!key || typeof key !== 'string') {
+    return res.status(400).json({ ok: false, error: 'missing_key' });
+  }
+  if (value === null) {
+    db.deleteCourseStateKey(course.slug, key);
+  } else {
+    db.setCourseStateKey(course.slug, key, String(value));
+  }
+  res.json({ ok: true });
+});
+
+// ==========================================
 // YEDEKLEME ROTALARI
 // ==========================================
 
@@ -646,6 +790,7 @@ app.get('/admin/backups/export-now', requireAdmin, (req, res) => {
       exam_results: data.exam_results.length,
       exam_topics: (data.exam_topics || []).length,
       exam_notes: (data.exam_notes || []).length,
+      course_state: (data.course_state || []).length,
       meta: data.meta.length
     },
     data
