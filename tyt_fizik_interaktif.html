@@ -1,0 +1,2165 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TYT Fizik - İnteraktif Konu Anlatımı</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #131826;
+    --bg-tertiary: #1a2235;
+    --bg-card: #1e2740;
+    --bg-card-hover: #243152;
+    --bg-pinned: #2a2240;
+    --bg-known: #11151f;
+    --border: #2a3552;
+    --border-pinned: #ffd166;
+    --border-known: #2a3552;
+    --text-primary: #e8eaf0;
+    --text-secondary: #a0a8bd;
+    --text-muted: #6b7493;
+    --accent: #6b9eff;
+    --accent-hover: #4a7fdb;
+    --pin: #ffd166;
+    --known: #4ade80;
+    --tip-bg: #2a2415;
+    --tip-border: #ffd166;
+    --formula-bg: #16213d;
+    --formula-border: #6b9eff;
+    --shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(19,24,38,0.95) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+  }
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6b9eff, #ffd166);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .search-box input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(107, 158, 255, 0.15);
+  }
+  .search-box::before {
+    content: "🔍";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  .stats {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+  }
+  .stat-icon { font-size: 14px; }
+  .stat-value { color: var(--text-primary); font-weight: 600; }
+
+  .reset-btn {
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .reset-btn:hover {
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+  }
+
+  /* ===== LAYOUT ===== */
+  .layout {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+    padding: 24px;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    position: sticky;
+    top: 90px;
+    height: calc(100vh - 110px);
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .unit-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .unit-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
+    width: 100%;
+    transition: all 0.2s;
+  }
+  .unit-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+  .unit-btn.active {
+    background: var(--bg-card);
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+  .unit-icon { font-size: 18px; }
+  .unit-num {
+    background: var(--bg-tertiary);
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+  .unit-btn.active .unit-num {
+    background: var(--accent);
+    color: white;
+  }
+
+  /* ===== MAIN CONTENT ===== */
+  .main {
+    min-width: 0;
+  }
+  .unit-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .unit-title {
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .unit-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  /* ===== SECTION ===== */
+  .section {
+    margin-bottom: 32px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .section-header:hover { background: var(--bg-tertiary); }
+  .section-header.pinned { background: rgba(255, 209, 102, 0.08); }
+  .section-header.known { background: rgba(74, 222, 128, 0.06); }
+  .section-icon { font-size: 18px; }
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .section-count {
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+  .section-toggle {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 14px;
+    transition: transform 0.2s;
+  }
+  .section.collapsed .section-toggle { transform: rotate(-90deg); }
+  .section.collapsed .section-content { display: none; }
+
+  /* ===== TOPIC ===== */
+  .topic {
+    margin-bottom: 24px;
+  }
+  .topic-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 12px;
+    padding-left: 12px;
+    border-left: 3px solid var(--accent);
+  }
+  .topic-tip {
+    background: var(--tip-bg);
+    border-left: 3px solid var(--tip-border);
+    padding: 10px 14px;
+    border-radius: 6px;
+    color: #ffd97d;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  /* ===== CARD ===== */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:hover {
+    background: var(--bg-card-hover);
+    border-color: #3a4a78;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  .card.pinned {
+    background: var(--bg-pinned);
+    border-color: var(--border-pinned);
+    box-shadow: 0 0 0 1px var(--border-pinned), var(--shadow);
+  }
+  .card.known {
+    background: var(--bg-known);
+    border-color: var(--border-known);
+    opacity: 0.55;
+  }
+  .card.known:hover {
+    opacity: 0.85;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .card-type {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .card-type.definition { background: rgba(107, 158, 255, 0.15); color: #6b9eff; }
+  .card-type.list { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+  .card-type.tip { background: rgba(255, 209, 102, 0.15); color: #ffd166; }
+  .card-type.formula { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+  .card-type.example { background: rgba(244, 114, 182, 0.15); color: #f472b6; }
+
+  .card-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+    padding: 0;
+  }
+  .action-btn:hover {
+    transform: scale(1.08);
+  }
+  .action-btn.pin:hover {
+    background: rgba(255, 209, 102, 0.15);
+    border-color: var(--pin);
+    color: var(--pin);
+  }
+  .action-btn.pin.active {
+    background: var(--pin);
+    border-color: var(--pin);
+    color: #1a1a2e;
+  }
+  .action-btn.know:hover {
+    background: rgba(74, 222, 128, 0.15);
+    border-color: var(--known);
+    color: var(--known);
+  }
+  .action-btn.know.active {
+    background: var(--known);
+    border-color: var(--known);
+    color: #0a0e1a;
+  }
+
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+  }
+  .card-content {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+  .card-details {
+    list-style: none;
+    margin-bottom: 10px;
+  }
+  .card-details li {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 4px 0 4px 18px;
+    position: relative;
+  }
+  .card-details li::before {
+    content: "▸";
+    position: absolute;
+    left: 4px;
+    color: var(--accent);
+    font-size: 11px;
+    top: 7px;
+  }
+  .card-formula {
+    background: var(--formula-bg);
+    border-left: 3px solid var(--formula-border);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 14px;
+    color: #4ade80;
+    margin: 8px 0;
+    overflow-x: auto;
+  }
+  .card-tip {
+    background: var(--tip-bg);
+    border-left: 3px solid var(--tip-border);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: #ffd97d;
+    margin-top: 10px;
+  }
+  .card-tip::before {
+    content: "💡 ";
+  }
+  .card-id {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: monospace;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    opacity: 0.5;
+  }
+
+  /* ===== EMPTY ===== */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+    background: var(--bg-secondary);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+  }
+  .empty-state-icon { font-size: 32px; display: block; margin-bottom: 10px; }
+
+  /* ===== MOBILE ===== */
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+      padding: 16px;
+    }
+    .sidebar {
+      position: static;
+      height: auto;
+      padding-right: 0;
+    }
+    .unit-nav {
+      flex-direction: row;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .unit-btn {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .unit-num { display: none; }
+    .cards-grid { grid-template-columns: 1fr; }
+    .header-inner { gap: 8px; }
+    .stats { width: 100%; order: 3; }
+  }
+
+  /* ===== HIGHLIGHT ===== */
+  mark {
+    background: rgba(255, 209, 102, 0.3);
+    color: var(--text-primary);
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+
+  /* Keyboard shortcuts hint */
+  .shortcut-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+    padding: 2px 6px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">⚛️ TYT Fizik</div>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Konu, kavram veya formül ara...">
+    </div>
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-icon">📌</span>
+        <span class="stat-value" id="statPinned">0</span>
+        <span>üstte</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-icon">✅</span>
+        <span class="stat-value" id="statKnown">0</span>
+        <span>biliyorum</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-icon">📚</span>
+        <span class="stat-value" id="statTotal">0</span>
+        <span>toplam</span>
+      </div>
+    </div>
+    <button class="reset-btn" onclick="resetProgress()" title="Tüm işaretlemeleri sıfırla">↻ Sıfırla</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <nav class="unit-nav" id="unitNav"></nav>
+  </aside>
+
+  <main class="main" id="mainContent"></main>
+</div>
+
+<script>
+// ============== VERİ ==============
+const FIZIK_DATA = {
+  units: [
+    {
+      id: 1,
+      title: "Fizik Bilimine Giriş",
+      icon: "⚛️",
+      topics: [
+        {
+          id: "1.1",
+          title: "Fiziğin Tanımı ve Önemi",
+          cards: [
+            { id: "1.1.1", title: "Fizik Nedir?", type: "definition",
+              content: "Uzay, zaman, madde ve enerji arasındaki ilişkileri inceleyen, gözlem ve deneye dayalı bir bilim dalıdır.",
+              details: ["Metafizik, sosyoloji, psikoloji, politika, din gibi alanlarla ilgilenmez.","Fizik bilgileri sınanabilir ve yanlışlanabilir.","Fizik bilgileri kişiden kişiye göre değişiklik göstermez.","Fizik bilimi her soruya cevap veremez.","Bilimsel bilgiler mutlak gerçek değildir, zamanla değişebilir."] },
+            { id: "1.1.2", title: "Bilimsel Bilgiye Ulaşma Yöntemleri", type: "list",
+              content: "Bilimsel bilgiye ulaşmanın tek bir yöntemi yoktur:",
+              details: ["Gözlem ve deneyler", "Akıl yürütme", "Hayal gücü"] },
+            { id: "1.1.3", title: "Fiziğin Diğer Disiplinlerle İlişkisi", type: "list",
+              content: "Fizik birçok bilim ve uygulama alanı ile ilişki içindedir:",
+              details: ["Biyoloji", "Kimya", "Matematik", "Felsefe", "Mühendislik", "Spor", "Tıp", "Sanat"] }
+          ]
+        },
+        {
+          id: "1.2",
+          title: "Fiziğin Alt Dalları",
+          tip: "🔑 \"KAMYONET\" kodlamasını unutma! (Katıhal, Atom, Mekanik, Yüksek Enerji, Optik, Nükleer, Elektromanyetizma, Termodinamik)",
+          cards: [
+            { id: "1.2.1", title: "1) Mekanik", type: "definition",
+              content: "Hareket, kuvvet ve denge ile ilgilenir.",
+              details: ["Statik: Kuvvet etkisinde dengede olan cisimleri inceler.","Dinamik: Net kuvvet etkisinde hareket eden cisimleri inceler.","Kinematik: Cisimlerin sadece hareketini inceler."] },
+            { id: "1.2.2", title: "2) Elektromanyetizma", type: "definition",
+              content: "Yük taşıyan parçacıkların elektriksel ve manyetik etkileşimleriyle ilgilenir.",
+              details: ["Kullanım: Yıldırım/şimşek, yün kazak çıtırtısı, lambaların yanması, elektrik motorları"] },
+            { id: "1.2.3", title: "3) Termodinamik", type: "definition",
+              content: "Isı enerjisi, özkütle, basınç gibi nicelikler arasındaki ilişkiyi inceler.",
+              details: ["Kullanım: Buzdolabı, klima, rüzgar/yağış, süperiletkenlik"] },
+            { id: "1.2.4", title: "4) Katıhal Fiziği", type: "definition",
+              content: "Kristal yapıdaki katı maddelerin elektrik, manyetik ve optiksel özelliklerini inceler.",
+              details: ["Kullanım: Islanmaz kumaş, nanoteknoloji ürünleri, güneş pilleri, yarı iletkenler"] },
+            { id: "1.2.5", title: "5) Optik", type: "definition",
+              content: "Işık olayları ve ışığın maddeyle etkileşimini inceler.",
+              details: ["Aydınlanma, gölge oluşumu, yansıma, renk, kırılma ve görme optiğin alanındadır.","Kullanım: Ayna, mercek, prizma, fotoğraf makinesi, gözlük, büyüteç, fiber optik kablo"] },
+            { id: "1.2.6", title: "6) Atom Fiziği", type: "definition",
+              content: "Atomun yapısını, atomlar ve moleküllerin etkileşimlerini inceler. \"Nanoteknoloji\" atom fiziğinin uygulama alanlarındandır.",
+              details: ["Kullanım: Kuantum bilgisayar, yapay zeka, 3D yazıcılar"] },
+            { id: "1.2.7", title: "7) Nükleer Fizik", type: "definition",
+              content: "Atom çekirdeğinin yapısını, çekirdekteki tepkimeleri ve kararsız atomların bozunmalarını inceler.",
+              details: ["Kullanım: Fosillerin yaş tayini, nükleer santraller, nükleer silahlar"] },
+            { id: "1.2.8", title: "8) Yüksek Enerji ve Plazma Fiziği", type: "definition",
+              content: "Atom altı parçacıkları inceler. Deneyler çok yüksek enerjilerde yapıldığı için yüksek enerji fiziği olarak adlandırılır.",
+              details: ["Kullanım: Roket ve uzay sanayi, LASER, evrenin oluşumu, parçacık hızlandırıcılar"] },
+            { id: "1.2.9", title: "Önemli Not", type: "tip",
+              content: "Kuantum fiziği ve astronomi gibi alanlar fiziğin alt dalı olmamakla birlikte, aynı zamanda kendi başlarına bağımsız bilim dallarıdır." }
+          ]
+        },
+        {
+          id: "1.3",
+          title: "Niceliklerin Sınıflandırılması",
+          cards: [
+            { id: "1.3.1", title: "İki Sınıflandırma Türü", type: "list",
+              content: "Fizikte nicelikler 2 farklı şekilde sınıflandırılır:",
+              details: ["Kendisinden başka bir niceliğin ölçülmesine gerek olup olmamasına göre: Temel ve türetilmiş","Yöne bağlı olup olmamalarına göre: Vektörel ve skaler"] },
+            { id: "1.3.2", title: "Temel Büyüklükler", type: "definition",
+              content: "Kendisinden başka bir niceliğe bağlı olmadan ifade edilen büyüklüklerdir. 7 tanedir:",
+              details: ["Uzunluk", "Akım şiddeti", "Zaman", "Sıcaklık", "Kütle", "Işık şiddeti", "Madde miktarı"],
+              tip: "🔑 \"KISA MUZ\" kodlaması: Kütle, Işık şiddeti, Sıcaklık, Akım, Madde miktarı, Uzunluk, Zaman" },
+            { id: "1.3.3", title: "Türetilmiş Büyüklükler", type: "definition",
+              content: "Bir büyüklük başka büyüklükler kullanılarak ifade ediliyorsa türetilmiş büyüklüktür.",
+              details: ["Örnekler: Alan, hacim, kuvvet, ivme"] },
+            { id: "1.3.4", title: "Skaler Büyüklükler", type: "definition",
+              content: "Doğrultu ya da yöne ihtiyaç duyulmadan sadece ölçü değeri ve birimi ile ifade edilen büyüklüklerdir.",
+              details: ["İş, güç, hacim, sıcaklık, zaman, sürat","Enerji, madde miktarı, kütle, ışık şiddeti","Uzunluk, yoğunluk, direnç, ısı"],
+              tip: "Tüm temel büyüklükler skalerdir ama tüm skaler büyüklükler temel büyüklük değildir." },
+            { id: "1.3.5", title: "Vektörel Büyüklükler", type: "definition",
+              content: "Sayısal değerinin yanında yönü, doğrultusu, başlangıç noktası gibi değerleri olan büyüklüklerdir.",
+              details: ["Kuvvet, yer değiştirme", "Hız, elektriksel alan", "İvme, ağırlık, manyetik alan"] },
+            { id: "1.3.6", title: "Birimsiz Büyüklükler", type: "tip",
+              content: "Fizikte tüm büyüklüklerin birimi bulunmaz. Birimi olmayan büyüklükler:",
+              details: ["Faz farkı", "Kırıcılık indisi", "Sürtünme katsayısı", "Birim vektörler"] },
+            { id: "1.3.7", title: "ÖSYM İpucu - SI Birimleri", type: "tip",
+              content: "ÖSYM sorularında özellikle fiziksel niceliklerin SI birimleri çok sorulur. Uzunlukta \"santimetre\" değil \"metre\", kütlede \"gram\" değil \"kilogram\" kullanıldığına dikkat edelim!" }
+          ]
+        },
+        {
+          id: "1.4",
+          title: "Bilimsel Araştırma Merkezleri",
+          cards: [
+            { id: "1.4.1", title: "TÜBİTAK", type: "definition",
+              content: "Kurulduğu yılda fen bilimlerindeki araştırmaları desteklemek ve araştırmacıları teşvik etmek amacıyla kurulmuştur. Günümüzde çeşitli alanlarda bilimsel çalışmaları yürütür." },
+            { id: "1.4.2", title: "TENMAK (TAEK)", type: "definition",
+              content: "Türkiye Atom Enerjisi Kurumu, Türkiye'nin yürüttüğü nükleer araştırmalardan sorumlu olan kurumdur." },
+            { id: "1.4.3", title: "ESA", type: "definition",
+              content: "Avrupa'nın uzay programını hazırlamak ve gerçekleştirmek amacıyla Fransa'da kurulmuş uluslararası uzay araştırma ve geliştirme kuruluşudur." },
+            { id: "1.4.4", title: "NASA", type: "definition",
+              content: "Amerika'da bulunan dünyaca ünlü bilim araştırma merkezlerinden biridir. Bu merkezde uzay çalışmaları programı yürütülmektedir." },
+            { id: "1.4.5", title: "ASELSAN", type: "definition",
+              content: "Türk savunma sanayisi ve haberleşmeyle ilgilenen kuruluştur. Türk Silahlı Kuvvetleri'nin teknolojik gelişmelerinin öncüsüdür." },
+            { id: "1.4.6", title: "CERN", type: "definition",
+              content: "Dünyanın en büyük parçacık fiziği laboratuvarıdır. İsviçre-Fransa sınırında yer alır. Yerin 100 metre altına inşa ettikleri HADRON çarpıştırıcısıyla yaptıkları deneylerle ünlüdür." },
+            { id: "1.4.7", title: "Soru İpucu", type: "tip",
+              content: "Verilen sorularda uzaydan bahsediliyorsa cevap yerine göre NASA veya ESA'dır. Çoğu soruda bahsi geçen kurumun bulunduğu coğrafya bizi cevaba götürecektir." }
+          ]
+        }
+      ]
+    },
+    {
+      id: 2,
+      title: "Madde ve Özellikleri",
+      icon: "🧊",
+      topics: [
+        {
+          id: "2.1",
+          title: "Madde, Kütle, Hacim",
+          cards: [
+            { id: "2.1.1", title: "Madde", type: "definition",
+              content: "Kütlesi ve eylemsizliği olan, uzayda yer kaplayan tanecikli yapılara \"madde\" denir.",
+              details: ["Maddenin belirli bir şekil almış haline \"cisim\" denir."] },
+            { id: "2.1.2", title: "Kütle", type: "definition",
+              content: "Madde miktarının ölçüsüdür. \"m\" sembolü ile gösterilir, SI birimi \"kg\"dır.",
+              details: ["Maddelerin ortak özelliğidir.","Basınç, hal değişimi, sıcaklık gibi faktörlerden etkilenmez.","Eşit kollu terazi ile ölçülür."] },
+            { id: "2.1.3", title: "Hacim", type: "definition",
+              content: "Maddenin uzayda kapladığı yere \"hacim\" denir. Sembolü V, SI birimi m³'tür. Türetilmiş ve skaler büyüklüktür." },
+            { id: "2.1.4", title: "Düzgün Şekli Olmayan Katı Cisim Hacmi", type: "definition",
+              content: "Düzgün geometrik şekli olmayan katı cismin hacmini ölçmek için sıvılardan yararlanılır.",
+              details: ["Dereceli silindir veya taşırma kapları kullanılır.","Katı cisim, kendisinden düşük yoğunluklu sıvıya tamamen battığında hacmi kadar sıvının yer değiştirmesine neden olur."] },
+            { id: "2.1.5", title: "Sıvıların Hacmi", type: "definition",
+              content: "Belirli şekli olmayan sıvıların hacim ölçümünde ölçekli kaplar kullanılır.",
+              tip: "İki farklı sıvı karışmıyorsa hacimleri toplamı kadar, karışıyorsa hacimleri toplamından daha küçük hacimde karışım elde edilir." },
+            { id: "2.1.6", title: "Gazların Hacmi", type: "definition",
+              content: "Gaz molekülleri arasındaki etkileşim zayıf olduğu için her yöne serbestçe hareket eder. Gazların hacmi, içinde bulundukları kabın hacmine göre ifade edilir.",
+              details: ["Gazların hacmi sıcaklık ve basınç değişiminden kolaylıkla etkilenir."] }
+          ]
+        },
+        {
+          id: "2.2",
+          title: "Özkütle (Yoğunluk)",
+          cards: [
+            { id: "2.2.1", title: "Özkütle", type: "definition",
+              content: "Saf bir maddenin birim hacim başına düşen kütlesidir. Maddeler için ayırıcı bir özelliktir.",
+              details: ["1 cm³ hacminin kaç gram kütleye eşit olduğunu ifade eder.","SI birimi: kg/m³","Sabit sıcaklık ve basınçta kütle veya hacim değişse de özkütle değişmez."],
+              formula: "d = m / V" },
+            { id: "2.2.2", title: "Kütle-Hacim Grafiği", type: "tip",
+              content: "Kütle-Hacim grafiğinin eğimi bize özkütleyi verir. Aynı şartlarda özkütleleri eşit olan maddeler aynı maddedir." },
+            { id: "2.2.3", title: "Suyun Özkütlesi", type: "tip",
+              content: "Suyun özkütlesinin en yüksek olduğu sıcaklık +4°C'dir ve bu sıcaklıkta özkütlesi 1 gr/cm³'tür. Diğer sıcaklıklarda özkütlesi 1'den küçüktür." },
+            { id: "2.2.4", title: "Karışımların Özkütlesi", type: "definition",
+              content: "Heterojen karışımların özkütlesi, toplam kütleyi toplam hacme bölerek bulunur.",
+              details: ["Örnekler: süt, yemekler, çamur"],
+              tip: "Özkütle ve yoğunluk terimleri birbirinin yerine kullanılabilir." }
+          ]
+        },
+        {
+          id: "2.3",
+          title: "Günlük Hayatta Özkütle",
+          cards: [
+            { id: "2.3.1", title: "Kuyumculuk", type: "example",
+              content: "Doğada karışık olarak bulunan altının ayrıştırılması için oluk yöntemi kullanılır. Diğer maddeler suyla akarken altın dibe çöker." },
+            { id: "2.3.2", title: "Ebru Yapımı", type: "example",
+              content: "Ebru sanatında kullanılan boyaların su üstünde kalmasında özkütle farkından yararlanılır." },
+            { id: "2.3.3", title: "Porselen Yapımı", type: "example",
+              content: "Porselenin dayanıklılığı, kalitesi, elektriği iletmemesi gibi özellikleri özkütlesine bağlı olarak değişir." }
+          ]
+        },
+        {
+          id: "2.4",
+          title: "Dayanıklılık",
+          cards: [
+            { id: "2.4.1", title: "Dayanıklılık Tanımı", type: "definition",
+              content: "Bir yapının sağlamlığını ifade eden kavramdır. Cismin fiziksel haline göre değişir." },
+            { id: "2.4.2", title: "Katı Maddelerde Dayanıklılık", type: "definition",
+              content: "Katı maddelerin dışarıdan uygulanan kuvvetlere karşı şekillerini korumaya çalışmasıdır.",
+              details: ["Her cismin dayanma derecesi farklıdır.","Katsayılar maddelerin cinsine ve boyutlarına göre değişir.","Aynı boyuttaki ahşap ve beton binanın dayanıklılığı farklıdır."] },
+            { id: "2.4.3", title: "Boyut-Dayanıklılık İlişkisi", type: "tip",
+              content: "Düzgün bir cismin dayanıklılığı boyutuyla ters orantılıdır. Cismin boyutları artarsa dayanıklılık azalır (kesit alanı / hacim oranı düşer)." }
+          ]
+        },
+        {
+          id: "2.5",
+          title: "Adezyon, Kohezyon ve Yüzey Olayları",
+          cards: [
+            { id: "2.5.1", title: "Adezyon ve Kohezyon", type: "definition",
+              content: "Aynı ve farklı cins moleküllerin birbirine uyguladıkları kuvvetlerdir. İkisi de elektriksel kuvvetler etkisiyle oluşur." },
+            { id: "2.5.2", title: "Adezyon", type: "definition",
+              content: "Farklı cins moleküllerin birbirine yapışmasını sağlayan etkileşim.",
+              details: ["Çay bardağının çay tabağına yapışması","Balın tahta kaşığa yapışması","Su damlacıklarının vücuda yapışması","Boyanın duvara yapışması"] },
+            { id: "2.5.3", title: "Kohezyon", type: "definition",
+              content: "Aynı cins moleküllerin birbiri arasındaki çekim kuvveti.",
+              details: ["Suyun dağılmadan bir arada durması","Musluktan damlayan suyun aldığı şekil","Suyu karıştırırkenki toplu hareket","Dalgaların bir bütün halinde oluşması"] },
+            { id: "2.5.4", title: "Hatırlama İpucu", type: "tip",
+              content: "Kohezyonu \"k\" → kardeş gibi düşün. Kardeş kardeşi çeker (aynı tür). Adezyonu \"a\" → arkadaş. Arkadaş aynı soydan olmayanı çeker." },
+            { id: "2.5.5", title: "Yüzey Gerilimi", type: "definition",
+              content: "Durgun sıvıların yüzeyinin esnek bir zar gibi görünmesidir.",
+              details: ["Sıcaklık artarsa yüzey gerilimi azalır (atomların arası açılır). Suyun +4°C özelliği istisna.","Çözücü madde katıysa yüzey gerilimini artırır; alkol gibi düşük kaynama noktalısı düşürür.","Sıvının yüzeyine etkiyen gaz basıncı artarsa yüzey gerilimi azalır."] },
+            { id: "2.5.6", title: "Kılcallık", type: "definition",
+              content: "Sıvı ile maddenin molekülleri arasındaki çekim, sıvının kendi molekülleri arasındaki çekimden büyükse oluşur.",
+              details: ["Yükselme miktarı sıvının yoğunluğu ile ters orantılı","Borunun yarıçapı ile ters orantılı","Yer çekimi ile ters orantılı","Yüzey gerilim katsayısı ile ters orantılı"],
+              tip: "Adezyon büyükse sıvı yukarı tırmanır. Kohezyon fazlaysa sıvı kendi içinde tutunur, yükselmez." }
+          ]
+        }
+      ]
+    },
+    {
+      id: 3,
+      title: "Hareket ve Kuvvet",
+      icon: "🏃",
+      topics: [
+        {
+          id: "3.1",
+          title: "Hareket",
+          cards: [
+            { id: "3.1.1", title: "Hareket Tanımı", type: "definition",
+              content: "Cisimlerin zaman içerisinde konumlarını değiştirmeleri \"hareket\" olarak tanımlanır." },
+            { id: "3.1.2", title: "Hareket Çeşitleri", type: "list",
+              content: "Cisimler farklı kuvvetlerin etkisinde farklı hareketler yapabilir:",
+              details: ["Öteleme: Doğrultu üzerinde kütle merkezi dahil bütün noktalar eşit miktarda ilerler.","Dönme: Kütle merkezi sabit, sabit eksen etrafında dolanma.","Titreşim: İki nokta arasında gidip gelme."],
+              tip: "Yuvarlanan top (öteleme + dönme), Bunge jumping (öteleme + titreşim), Dönme dolap (dönme + titreşim)." }
+          ]
+        },
+        {
+          id: "3.2",
+          title: "Konum, Yol, Yer Değiştirme",
+          cards: [
+            { id: "3.2.1", title: "Konum", type: "definition",
+              content: "Bir cismin yer değiştirme miktarı gibi nicelikleri tanımlamak için seçilen sabit referans noktasıdır.",
+              details: ["SI birimi metredir. Vektörel büyüklüktür."] },
+            { id: "3.2.2", title: "Alınan Yol", type: "definition",
+              content: "Yönden bağımsız olarak kat edilen yolun uzunluğunu ifade eder.",
+              details: ["Skaler büyüklüktür.", "SI birimi metredir, x ile gösterilir."] },
+            { id: "3.2.3", title: "Yer Değiştirme", type: "definition",
+              content: "Bir cismin ilk konumundan son konumuna doğru en kısa yol boyunca çizilen yönlü uzaklıktır.",
+              details: ["Vektörel büyüklüktür.", "SI birimi metredir."],
+              formula: "Yer Değiştirme = Son Konum - İlk Konum" }
+          ]
+        },
+        {
+          id: "3.3",
+          title: "Sürat, Hız, İvme",
+          cards: [
+            { id: "3.3.1", title: "Sürat ve Hız", type: "definition",
+              content: "Sürat, bir cismin birim zamanda aldığı yoldur. Hız ise birim zamanda yapılan yer değiştirmedir.",
+              details: ["Sürat skaler, hız vektöreldir.","Araçlardaki \"hız göstergesi\" aslında sürat değerini gösterir."] },
+            { id: "3.3.2", title: "Ortalama Hız ve Sürat", type: "definition",
+              content: "Toplam yolun toplam zamana oranı \"ortalama sürat\"; yer değiştirmenin toplam zamana oranı \"ortalama hız\"dır." },
+            { id: "3.3.3", title: "Düzgün Doğrusal Hareket", type: "definition",
+              content: "Bir doğru üzerinde eşit zaman aralıklarında eşit yer değiştirmeler yapan hareket çeşididir. \"Sabit hızlı hareket\" de denir.",
+              formula: "x = V · t" },
+            { id: "3.3.4", title: "İvme", type: "definition",
+              content: "Hızda birim zamanda meydana gelen değişikliktir. Vektörel niceliktir.",
+              details: ["SI birimi: m/s²"],
+              tip: "Sabit ivme ile hızlanan cismin ivme ve hız vektörleri aynı yönlü; yavaşlayan cismin ise ters yönlüdür." }
+          ]
+        },
+        {
+          id: "3.4",
+          title: "Hareket Grafikleri",
+          cards: [
+            { id: "3.4.1", title: "Konum-Zaman Grafiği", type: "tip",
+              content: "Konum-zaman grafiğinin eğimi bize cismin hızını verir." },
+            { id: "3.4.2", title: "Hız-Zaman Grafiği", type: "tip",
+              content: "Hız-zaman grafiğinin alanı bize yapılan yer değiştirmeyi verir." },
+            { id: "3.4.3", title: "İvme-Zaman Grafiği", type: "tip",
+              content: "İvme-zaman grafiğinin alanı bize hızdaki değişimi verir." }
+          ]
+        },
+        {
+          id: "3.5",
+          title: "Kuvvet",
+          cards: [
+            { id: "3.5.1", title: "Kuvvet Tanımı", type: "definition",
+              content: "Durgun bir cismi harekete geçirebilen, hareketli bir cismi durdurabilen etkidir.",
+              details: ["Vektörel büyüklüktür, F ile gösterilir.","Şiddeti dinamometre ile ölçülür.","SI birimi: Newton (N)"] },
+            { id: "3.5.2", title: "Temas Gerektiren Kuvvetler", type: "list",
+              content: "Cisimlerin temas etmesi gereken kuvvetler:",
+              details: ["Akışkanların kaldırma kuvveti","İtme kuvveti","Çekme kuvveti","Kas kuvveti","Rüzgâr kuvveti"] },
+            { id: "3.5.3", title: "Temas Gerektirmeyen Kuvvetler", type: "list",
+              content: "Uzaktan etkili kuvvetler:",
+              details: ["Manyetik kuvvet","Elektriksel kuvvet","Kütle çekim kuvveti","Atom çekirdeğindeki nükleer kuvvetler"] }
+          ]
+        },
+        {
+          id: "3.6",
+          title: "Doğanın Dört Temel Kuvveti",
+          cards: [
+            { id: "3.6.1", title: "1) Güçlü Nükleer Kuvvet", type: "definition",
+              content: "Atom çekirdeğinde proton ve nötronların bir arada durmasını sağlayan kuvvettir.",
+              details: ["En şiddetli kuvvet olmasına rağmen çok kısa mesafelerde etkilidir."] },
+            { id: "3.6.2", title: "2) Zayıf Nükleer Kuvvet", type: "definition",
+              content: "Pek çok parçacığın ve atom çekirdeğinin kararsız olmasından sorumludur.",
+              details: ["Etkisi atom çekirdeği boyutlarında gözlenir."] },
+            { id: "3.6.3", title: "3) Elektromanyetik Kuvvet", type: "definition",
+              content: "Elektrik yüklü parçacıklar arasında oluşan kuvvetlerdir.",
+              details: ["Menzili sonsuz olup sonsuzda sıfır olur."] },
+            { id: "3.6.4", title: "4) Kütle Çekim Kuvveti", type: "definition",
+              content: "Temel kuvvetler arasındaki en zayıf kuvvet olmasına rağmen evrenin bugünkü şeklinde en etkili olan kuvvettir.",
+              details: ["Sadece çekme özelliği gösterir.","Kütlelerin büyüklüğü ile doğru, aralarındaki mesafenin karesi ile ters orantılıdır.","Menzili sonsuz olup sonsuzda sıfır olur."] }
+          ]
+        },
+        {
+          id: "3.7",
+          title: "Newton'un Hareket Yasaları",
+          cards: [
+            { id: "3.7.1", title: "Genel Bilgi", type: "tip",
+              content: "Newton, \"Principia\" adlı eserinde üç hareket kanunundan bahsederek mekaniğin temelini atmıştır." },
+            { id: "3.7.2", title: "1) Eylemsizlik Prensibi", type: "definition",
+              content: "Cisimlerin durağan hâllerini devam ettirme, hareketli cisimlerin hareketlerini sürdürme eğilimine \"eylemsizlik\" denir.",
+              details: ["Örnek: Hızlanan arabada yolcuların koltuğa doğru itilmesi."] },
+            { id: "3.7.3", title: "2) Dinamiğin Temel Prensibi", type: "definition",
+              content: "Cisim üzerine etkiyen net kuvvet sıfırdan farklı ise cisim, kuvvet doğrultusunda ivmeli hareket yapar.",
+              formula: "F = m · a",
+              tip: "Bileşke kuvvet \"0\" ise cisim Dengelenmiş Kuvvetler etkisindedir ve ivmesi 0'dır." },
+            { id: "3.7.4", title: "3) Etki-Tepki Prensibi", type: "definition",
+              content: "Etkileşimde olan cisimlerden biri etki uyguluyorsa diğer cisim de eşit büyüklükte fakat zıt yönde tepki uygular.",
+              details: ["Etki-tepki kuvvetleri aynı cisme etki etmez, bu nedenle birbirlerini sıfırlayamazlar."] }
+          ]
+        },
+        {
+          id: "3.8",
+          title: "Ağırlık ve Sürtünme",
+          cards: [
+            { id: "3.8.1", title: "Ağırlık ve Yer Çekimi İvmesi", type: "definition",
+              content: "Bir gezegenin yüzeyinde bulunan cismin kütlesine uyguladığı kuvvete \"ağırlık\" denir.",
+              details: ["Dinamometre ile ölçülür.","G sembolü ile gösterilir, birimi Newton.","Birim kütleye uygulanan kuvvete \"çekim ivmesi\" denir."],
+              formula: "G = m · g" },
+            { id: "3.8.2", title: "Sürtünme Kuvveti", type: "definition",
+              content: "Birbirine temas eden yüzeyler arasında harekete ya da zorlamaya karşı oluşan kuvvettir.",
+              details: ["Vektörel niceliktir.", "F(s) ile gösterilir, SI birimi Newton."],
+              formula: "F(s) = k · N" },
+            { id: "3.8.3", title: "Tepki Kuvveti İpucu", type: "tip",
+              content: "Cisim düz zeminde ve başka kuvvetlerin etkisinde değilse cismin ağırlığı tepki kuvvetine eşittir." },
+            { id: "3.8.4", title: "Sürtünme Yönü", type: "tip",
+              content: "Sürtünme kuvveti her zaman harekete ters yönde olmak zorunda değil. Kayarak ilerleyen cisimlerde harekete ters, dönerek ilerleyen cisimlerde aynı yönde olur." },
+            { id: "3.8.5", title: "1) Statik Sürtünme Kuvveti", type: "definition",
+              content: "Duran cismin harekete geçiş anına kadar etki eden sürtünme kuvvetidir.",
+              details: ["Sabit bir değeri yoktur, cisme uygulanan kuvvete bağlı değişir."] },
+            { id: "3.8.6", title: "2) Kinetik Sürtünme Kuvveti", type: "definition",
+              content: "Hareket hâlindeki cisimlere etki eden sürtünme kuvvetidir.",
+              details: ["Statik sürtünme kuvvetinin maksimum değerinden daha düşüktür.", "Duran cismi harekete geçirmek, hareket etmesini sürdürmekten daha zordur."] }
+          ]
+        }
+      ]
+    },
+    {
+      id: 4,
+      title: "Enerji",
+      icon: "⚡",
+      topics: [
+        {
+          id: "4.1",
+          title: "İş, Güç, Enerji",
+          cards: [
+            { id: "4.1.1", title: "Fizikte İş Kavramı", type: "definition",
+              content: "Fizikte iş yapmak için bir kuvvet uygulanması ve kuvvet doğrultusunda yol alınması gerekir.",
+              details: ["Çantayı taşıyıp yürürken yukarı kuvvet uygulanır ama ileri hareket olur, bu yüzden iş yapılmaz.","Skaler büyüklüktür, W ile gösterilir.","SI birimi: Joule"],
+              formula: "W = F · x" },
+            { id: "4.1.2", title: "Negatif İş", type: "definition",
+              content: "Cismin hareketine ters yönde etkiyen kuvvetlerin yaptığı iştir. Pozitif iş ise kuvvet yönünde hareket varsa olur.",
+              tip: "Negatif iş bulunurken hareket yönünün zıt yönündeki kuvvet, yol ile çarpılır." },
+            { id: "4.1.3", title: "İş ile Enerji İlişkisi", type: "definition",
+              content: "Enerji, iş yapabilme yeteneğidir. Cisim üzerinde iş yapıldığında cisme enerji aktarılır.",
+              details: ["Bu \"İş-Enerji Teoremi\"dir.", "İş = Enerjideki Değişim", "Enerji yoktan var, vardan yok edilemez."],
+              formula: "W = ΔE" },
+            { id: "4.1.4", title: "Güç", type: "definition",
+              content: "Bir işin birim zamanda yapılma hızıdır. P ile gösterilir.",
+              details: ["SI birimi Watt (W)","Bir cihazın gücü, birim zamanda harcadığı enerjiyi ifade eder."],
+              formula: "P = W / t" }
+          ]
+        },
+        {
+          id: "4.2",
+          title: "Mekanik Enerji",
+          cards: [
+            { id: "4.2.1", title: "Kinetik Enerji", type: "definition",
+              content: "Cisimlerin hareketinden dolayı sahip oldukları enerjidir.",
+              details: ["Hareket hâlindeki tüm varlıklar kinetik enerjiye sahiptir.","Öteleme şeklindeyse \"öteleme kinetik enerjisi\" denir.","SI birimi: Joule, KE ile gösterilir.","Kütle ve hıza bağlıdır; hızın karesi ile doğru orantılıdır."],
+              formula: "KE = ½ · m · v²",
+              tip: "Kinetik enerjiyi artırmak için hızı değiştirmek gerekir." },
+            { id: "4.2.2", title: "Potansiyel Enerji", type: "definition",
+              content: "Kullanıma hazır enerji anlamına gelir. Yer çekimi ve esneklik potansiyel enerjisi olmak üzere ikiye ayrılır.",
+              tip: "Potansiyel enerjiyi yalnızca yer çekimi potansiyel enerjisi sanma, esneklik potansiyel enerjisi de var!" },
+            { id: "4.2.3", title: "Yer Çekimi Potansiyel Enerjisi", type: "definition",
+              content: "Cisimlerin bulundukları konumdan dolayı sahip oldukları enerjidir.",
+              formula: "PE = m · g · h",
+              tip: "Potansiyel enerjiyi hesaplamak için sabit bir nokta yoktur. Referans noktası değişebilir." },
+            { id: "4.2.4", title: "Esneklik Potansiyel Enerjisi", type: "definition",
+              content: "Cisimlerin gerilmelerinden dolayı sahip oldukları enerjidir. Yay ve lastik gibi esnek sistemler gerildiğinde veya sıkıştırıldığında potansiyel enerji kazanır.",
+              formula: "EPE = ½ · k · x²",
+              tip: "Yay sıkıştırıldığında iter, gerildiğinde çeker; bu kuvvetin sıfır olduğu yere \"denge konumu\" denir." },
+            { id: "4.2.5", title: "Mekanik Enerji", type: "definition",
+              content: "Kinetik ve potansiyel enerjilerin toplamıdır.",
+              details: ["Cisim enerjisinin bir kısmını ısı, ışık, ses gibi enerji türlerine dönüştürmüyorsa mekanik enerjisini korur.","Bir cisimde sadece kinetik, sadece potansiyel veya ikisi birden bulunabilir."] }
+          ]
+        },
+        {
+          id: "4.3",
+          title: "Enerjinin Korunumu ve Verim",
+          cards: [
+            { id: "4.3.1", title: "Enerjinin Korunumu", type: "definition",
+              content: "Sürtünmenin olmadığı sistemde enerji kinetik ve potansiyel arasında dönüşür ve mekanik enerji korunur.",
+              details: ["Sürtünmeli sistemde enerjinin bir kısmı ısıya dönüşür, mekanik enerji azalır."] },
+            { id: "4.3.2", title: "Cisim Yüksekten Düşerken", type: "tip",
+              content: "Sürtünmesiz ortamda cisim belirli yükseklikten bırakılırsa potansiyel enerjisinin tamamı zamanla kinetik enerjiye dönüşür." },
+            { id: "4.3.3", title: "Sürtünmeli Düşüşte", type: "tip",
+              content: "Sürtünmeli ortamda potansiyelden kaybedilen tüm enerji mekanik enerjiye dönüşmez. Bir kısmı ısıya dönüşür." },
+            { id: "4.3.4", title: "Müfredat Özeti", type: "tip",
+              content: "Tüm enerji dönüşüm sorularında temel mantık aynıdır: Sürtünme var mı? Varsa enerjinin bir kısmı ısıya dönüşür; yoksa mekanik enerji korunur ve KE-PE arasında dönüşüm olur." },
+            { id: "4.3.5", title: "Verim", type: "definition",
+              content: "Bir sistemde yapılan işin o sistemde harcanan enerjiye oranıdır.",
+              details: ["Sürtünmesiz sistemin verimi %100'dür.","50 J harcanıp 40 J alındıysa verim %80'dir."],
+              formula: "Verim = (Faydalı Enerji / Verilen Enerji) × 100" }
+          ]
+        },
+        {
+          id: "4.4",
+          title: "Enerji Kaynakları",
+          cards: [
+            { id: "4.4.1", title: "Sınıflandırma", type: "definition",
+              content: "Enerji kaynakları iki gruba ayrılır: Yenilenemez ve Yenilenebilir.",
+              details: ["Yenilenemez: Kullanıldıkça tükenen, kısa zamanda yeniden oluşamayan kaynaklar.","Yenilenebilir: Kullanıldıkça tükenmeyen, sürekli ve tekrar kullanılabilen kaynaklar."] },
+            { id: "4.4.2", title: "Kömür Enerjisi (Yenilenemez)", type: "example",
+              content: "Karbon, hidrojen ve oksijen elementlerinin bileşiminden oluşur. Günümüzdeki hava kirliliğinin ana nedenlerindendir." },
+            { id: "4.4.3", title: "Petrol Enerjisi (Yenilenemez)", type: "example",
+              content: "Kaygan yapılı, yanıcı, madeni yağdır. Ham petrolün ayrıştırılmasından mazot, benzin, LPG gibi türevler elde edilir." },
+            { id: "4.4.4", title: "Doğal Gaz Enerjisi (Yenilenemez)", type: "example",
+              content: "Birçok hidrokarbon bileşiğinden oluşur. Yanıcı, kokusuz, renksiz ve havadan hafiftir." },
+            { id: "4.4.5", title: "Nükleer Enerji (Yenilenemez)", type: "example",
+              content: "Uranyum gibi büyük atom çekirdeklerinin parçalanması sonucu büyük enerji açığa çıkar. En büyük örneği güneşimizdir." },
+            { id: "4.4.6", title: "Hidroelektrik (Yenilenebilir)", type: "example",
+              content: "Baraj gibi yapılarda biriken suyun potansiyel enerjisi kullanılarak enerji elde etme yöntemidir." },
+            { id: "4.4.7", title: "Rüzgâr Enerjisi (Yenilenebilir)", type: "example",
+              content: "Sıcaklık farkından kaynaklanan rüzgârlardan rüzgâr gülü gibi araçlarla enerji elde etme yöntemidir." },
+            { id: "4.4.8", title: "Jeotermal Enerji (Yenilenebilir)", type: "example",
+              content: "Yeryüzüne çıkan sıcak suya jeotermal kaynak suyu denir. Bu sıcak su ile enerji elde edilir." },
+            { id: "4.4.9", title: "Güneş Enerjisi (Yenilenebilir)", type: "example",
+              content: "Yerküreye ulaşan güneş ışınlarının güneş panelleri ile elektrik enerjisine dönüştürülmesidir." },
+            { id: "4.4.10", title: "Biyokütle Enerjisi (Yenilenebilir)", type: "example",
+              content: "Evde oluşan muz kabuğu, kemik gibi biyolojik atıklardan enerji elde etme yöntemidir." }
+          ]
+        }
+      ]
+    },
+    {
+      id: 5,
+      title: "Isı ve Sıcaklık",
+      icon: "🌡️",
+      topics: [
+        {
+          id: "5.1",
+          title: "Isı, Sıcaklık ve İç Enerji",
+          cards: [
+            { id: "5.1.1", title: "İç Enerji", type: "definition",
+              content: "Bir sistemi oluşturan atom ve moleküllerin kinetik ve potansiyel enerjilerinin toplamıdır.",
+              details: ["Doğrudan ölçülemez, ancak kıyaslanabilir.","Madde ısıtıldığında sıcaklığı değişmeyebilir ama iç enerjisi kesinlikle değişir."] },
+            { id: "5.1.2", title: "Sıcaklık", type: "definition",
+              content: "Bir sistemdeki atom ve moleküllerin ortalama kinetik enerjisinin göstergesidir, bir enerji değildir.",
+              details: ["T sembolü ile gösterilir.","SI birimi: Kelvin (K)","Mutlak sıfır: -273°C veya 0 K","Vücudumuzun algıladığı sıcaklığa \"hissedilen sıcaklık\" denir."] },
+            { id: "5.1.3", title: "Isı", type: "definition",
+              content: "Sıcaklıkları farklı, etkileşim hâlindeki iki sistem arasında sıcaklığı yüksek olandan düşük olana doğru transfer edilen enerjidir.",
+              details: ["Q sembolü ile gösterilir.","SI birimi: Joule","Kalorimetre kabı ile ölçülür."],
+              tip: "\"Bir cismin içindeki ısı miktarı\" şeklinde bir kavram yoktur. Isı, transfer edilen enerjidir." }
+          ]
+        },
+        {
+          id: "5.2",
+          title: "Termometreler",
+          cards: [
+            { id: "5.2.1", title: "Termometreler", type: "definition",
+              content: "Termometreler sıcaklık ölçümünde kullanılan aletlerdir." },
+            { id: "5.2.2", title: "1) Metal Termometreler", type: "definition",
+              content: "En yüksek sıcaklıklarda ölçüm yapan türdür.",
+              details: ["Metallerin genleşmesi prensibine göre çalışır.","Kullanım alanı endüstriyeldir."] },
+            { id: "5.2.3", title: "2) Sıvılı Termometreler", type: "definition",
+              content: "Günlük hayatta karşılaştığımız sıcaklıklar için tasarlanmıştır.",
+              details: ["Sıvıların genleşmesine göre çalışır.","Hassasiyet artar: hazne büyük, sıvı genleşme katsayısı yüksek, silindir ince, ölçeklendirme sık olduğunda."] },
+            { id: "5.2.4", title: "3) Gazlı Termometreler", type: "definition",
+              content: "Gazlar sıcaklık değişimlerine katı ve sıvılara göre daha fazla tepki verir. Hassas ölçümlerde kullanılır." }
+          ]
+        },
+        {
+          id: "5.3",
+          title: "Sıcaklık Ölçekleri",
+          cards: [
+            { id: "5.3.1", title: "Üç Ana Ölçek", type: "list",
+              content: "En sık kullanılan ölçekler:",
+              details: ["Celsius (°C)", "Kelvin (K)", "Fahrenheit (°F)"] },
+            { id: "5.3.2", title: "Kelvin", type: "definition",
+              content: "SI sisteminde sıcaklığın resmi birimidir. En küçük 0 değerini alabilir." },
+            { id: "5.3.3", title: "Celsius", type: "definition",
+              content: "Günümüzde en sık kullanılan sıcaklık birimidir. Su 0°C'de donar, 100°C'de kaynar.",
+              formula: "°C = K - 273" },
+            { id: "5.3.4", title: "Fahrenheit", type: "definition",
+              content: "Suyun donma sıcaklığı 32°F, kaynama sıcaklığı 212°F olarak alınır.",
+              formula: "°F = (9/5)·°C + 32" }
+          ]
+        },
+        {
+          id: "5.4",
+          title: "Öz Isı ve Isı Sığası",
+          cards: [
+            { id: "5.4.1", title: "Öz Isı", type: "definition",
+              content: "Bir maddenin 1 gramının sıcaklığını 1°C değiştirmek için verilmesi/alınması gereken ısıdır.",
+              details: ["c sembolü ile gösterilir.","Birimi: cal/g·°C","Maddeler için ayırt edici özelliktir, madde miktarına bağlı değildir."],
+              tip: "Öz ısısı yüksek olanların sıcaklık değişimi yavaş, düşük olanlarınki hızlıdır." },
+            { id: "5.4.2", title: "Isı Sığası", type: "definition",
+              content: "Bir maddenin sıcaklığını 1°C değiştirmek için verilmesi/alınması gereken ısı miktarıdır.",
+              details: ["C sembolü ile gösterilir.","Maddenin cinsine ve miktarına bağlıdır."],
+              formula: "C = m · c" },
+            { id: "5.4.3", title: "Isı-Sıcaklık İlişkisi", type: "definition",
+              content: "Hal değişimi sıcaklığında olmayan bir madde ısı aldığında veya verdiğinde sıcaklığı değişir.",
+              formula: "Q = m · c · ΔT",
+              tip: "Sıcaklık-ısı grafiğinin eğimi ile maddenin ısı sığası ters orantılıdır." }
+          ]
+        },
+        {
+          id: "5.5",
+          title: "Hal Değişimi",
+          cards: [
+            { id: "5.5.1", title: "Hal Değişimi Tanımı", type: "definition",
+              content: "Bir maddenin ısı alarak veya vererek bir halden başka hale geçmesidir.",
+              details: ["Hal değişimi sıcaklığında olmalıdır.","Hal değişimi sırasında sıcaklık değişmez."] },
+            { id: "5.5.2", title: "Erime", type: "definition",
+              content: "Katı → sıvı geçişi. Dışarıdan ısı alınır.",
+              details: ["Başladığı sıcaklığa \"erime noktası\" denir.","Erime noktası = donma noktası, ayırt edici özelliktir."] },
+            { id: "5.5.3", title: "Donma", type: "definition",
+              content: "Sıvı → katı geçişi. Dışarıya ısı verilir." },
+            { id: "5.5.4", title: "Buharlaşma", type: "definition",
+              content: "Sıvı → gaz geçişi. Dışarıdan ısı alınır.",
+              details: ["Buharlaşma ve kaynama farklı olaylardır! Kaynama buharlaşmanın özel bir halidir."] },
+            { id: "5.5.5", title: "Yoğuşma", type: "definition",
+              content: "Gaz → sıvı geçişi. Dışarıya ısı verilir." },
+            { id: "5.5.6", title: "Süblimleşme", type: "definition",
+              content: "Katı → gaz geçişi. Dışarıdan ısı alınır." },
+            { id: "5.5.7", title: "Kırağılaşma", type: "definition",
+              content: "Gaz → katı geçişi. Dışarıya ısı verilir." },
+            { id: "5.5.8", title: "İyonizasyon", type: "definition",
+              content: "Gaz → plazma geçişi. Dışarıdan ısı alınır." },
+            { id: "5.5.9", title: "Deiyonizasyon", type: "definition",
+              content: "Plazma → gaz geçişi. Dışarıya ısı verilir." }
+          ]
+        },
+        {
+          id: "5.6",
+          title: "Hal Değiştirme Isısı",
+          cards: [
+            { id: "5.6.1", title: "Erime/Donma Isısı", type: "definition",
+              content: "1 gram katının sıvıya geçmesi için verilen ısıya \"erime ısısı\"; 1 gram sıvının katıya geçmesi için verdiği ısıya \"donma ısısı\" denir. Birbirine eşittir.",
+              formula: "L_E = L_D" },
+            { id: "5.6.2", title: "Hal Değişim Isısı Formülü", type: "definition",
+              content: "Q ısı, m kütle ve L hal değiştirme ısısı olmak üzere:",
+              formula: "Q = m · L" },
+            { id: "5.6.3", title: "Buharlaşma/Yoğuşma Isısı", type: "tip",
+              content: "Buharlaşma ısısı = Yoğuşma ısısı (L_B = L_Y)" }
+          ]
+        },
+        {
+          id: "5.7",
+          title: "Isıl Denge",
+          cards: [
+            { id: "5.7.1", title: "Isıl Denge Tanımı", type: "definition",
+              content: "Farklı sıcaklıktaki iki madde arasında yüksekten düşüğe ısı akışı olur. Sıcaklıklar eşitlenene kadar devam eder.",
+              details: ["Hal değişimi yoksa denge sıcaklığı her zaman iki sıcaklık arasındadır.","Sıcaklıklar aynıysa ısı alışverişi olmaz.","Sistem yalıtılmışsa: yüksek sıcaklıklının verdiği = düşük sıcaklıklının aldığı."] },
+            { id: "5.7.2", title: "Karışım Sıcaklığı Formülü", type: "formula",
+              content: "İki sıvı karıştırıldığında denge sıcaklığı T:",
+              formula: "T = (m₁·c₁·T₁ + m₂·c₂·T₂) / (m₁·c₁ + m₂·c₂)" }
+          ]
+        },
+        {
+          id: "5.8",
+          title: "Enerji İletim Yolları",
+          cards: [
+            { id: "5.8.1", title: "Üç İletim Yolu", type: "list",
+              content: "Enerji 3 farklı yolla iletilir:",
+              details: ["İletim", "Konveksiyon", "Işıma"] },
+            { id: "5.8.2", title: "1) İletim", type: "definition",
+              content: "Madde ısıtıldığında ısı kaynağına yakın atom ve moleküller enerji alır, diğer atomlara titreşim yoluyla iletir.",
+              details: ["Genellikle katılarda gerçekleşir.","Sıvı/gazlarda etkili değildir.","Örnek: Sıcak çayın içine atılan kaşığın üst kısmının ısınması."] },
+            { id: "5.8.3", title: "2) Konveksiyon", type: "definition",
+              content: "Sıvı ve gazlarda ısı alan taneciklerin hacmi artar, özkütlesi azalır. Yukarı çıkar; soğuk olanlar aşağı iner.",
+              details: ["Örnek: Çorbanın altan ısıtılınca tamamının ısınması."] },
+            { id: "5.8.4", title: "3) Işıma", type: "definition",
+              content: "Isı enerjisinin ışınlarla dalgalar hâlinde yayılmasıdır.",
+              details: ["Sıcaklığı mutlak donma noktasından yüksek olan her varlık ışıma yapar.","Örnek: Güneş'in dünyamızı ısıtması."],
+              tip: "Diğer iletim yollarına göre ışımada maddesel ortama ihtiyaç yoktur. Elektromanyetik dalgalar ile yayılır." }
+          ]
+        },
+        {
+          id: "5.9",
+          title: "Isının İletim Hızı",
+          cards: [
+            { id: "5.9.1", title: "İletim Hızını Etkileyen Faktörler", type: "list",
+              content: "Isı iletim hızını etkileyen faktörler:",
+              details: ["Yüzey Alanı (A): Büyük olunca ısı iletim hızı artar.","Kalınlık (L): Fazla olunca ısı iletim hızı düşer.","Sıcaklık Farkı (ΔT): Fazla olunca iletim hızı artar.","Maddenin Cinsi (k): Isı iletim katsayısı büyükse hız artar."],
+              tip: "Yapısında çok serbest elektron bulunduran malzemeler ısıyı iyi iletir. En iyi örneği metallerdir." }
+          ]
+        },
+        {
+          id: "5.10",
+          title: "Genleşme",
+          cards: [
+            { id: "5.10.1", title: "Genleşme Tanımı", type: "definition",
+              content: "Isı alan maddelerin hacimlerinde meydana gelen artıştır. Tersine \"büzülme\" denir.",
+              details: ["Sıcaklığı artan pek çok madde, bazı istisnalar dışında genleşir."] },
+            { id: "5.10.2", title: "Genleşmeyi Etkileyen Faktörler", type: "list",
+              content: "Genleşmeyi etkileyen faktörler:",
+              details: ["Maddenin Genleşme Katsayısı (λ): Büyükse hacim değişimi fazla.","Sıcaklık Değişimi (ΔT): Fazlaysa hacim değişimi çok.","Maddenin İlk Boyutu (L): İlk hacim fazlaysa değişim de fazla."] },
+            { id: "5.10.3", title: "1) Boyca Genleşme", type: "definition",
+              content: "Tel ya da çubuğun sıcaklığının değişmesiyle boyunda meydana gelen değişimdir. Kesit alanındaki genleşme ihmal edilir.",
+              details: ["Farklı genleşme katsayılı iki metalden yapılan metal çift bükülür."] },
+            { id: "5.10.4", title: "2) Yüzeyce Genleşme", type: "definition",
+              content: "Metal levhalardaki iki boyutlu genleşmedir." },
+            { id: "5.10.5", title: "3) Hacimce Genleşme", type: "definition",
+              content: "Metal kürelerdeki üç boyutlu genleşmedir." },
+            { id: "5.10.6", title: "Günlük Hayatta Genleşme", type: "list",
+              content: "Genleşme örnekleri:",
+              details: ["Termometreler (sıvı/metal genleşmesi)","Sıcak hava balonlarıyla uçuş","Köprülerde genleşme bağlantıları","Tren raylarında bırakılan boşluklar","Fayanslar arasında bırakılan boşluk"] },
+            { id: "5.10.7", title: "Suyun Anomalisi", type: "tip",
+              content: "Su, donarken hacmi artan nadir yapılardandır. Donan suyun özkütlesi azalır, suyun özkütlesinden küçük olur. Buz suda yüzer ve buz tabakasını oluşturur.",
+              details: ["Su +4°C'de en küçük hacim ve en büyük özkütleye sahiptir.", "+4°C'nin altında hacmi artar, özkütlesi azalır."] }
+          ]
+        }
+      ]
+    },
+    {
+      id: 6,
+      title: "Elektrostatik",
+      icon: "⚡",
+      topics: [
+        {
+          id: "6.1",
+          title: "Elektrik Yükleri",
+          cards: [
+            { id: "6.1.1", title: "Elektrostatik", type: "definition",
+              content: "Durgun elektrik yüklerini ve bu yükler arasındaki etkileşmeyi inceleyen bilim dalıdır." },
+            { id: "6.1.2", title: "Yük Nasıl Oluşur?", type: "definition",
+              content: "Atomdan elektron koparılması proton sökülmesinden çok daha kolaydır. Atomun yüklenmesi elektronlarla gerçekleşir.",
+              details: ["Elektron sayısı protondan fazla → negatif yük","Elektron sayısı protondan az → pozitif yük","Yük \"q\" ile gösterilir, SI birimi Coulomb (C)"] },
+            { id: "6.1.3", title: "Yük Etkileşimi", type: "definition",
+              content: "Aynı cins elektrik yüklü cisimler birbirini iter, zıt yüklüler birbirini çeker. Yüklü cisimler nötr cisimleri de çekebilir." }
+          ]
+        },
+        {
+          id: "6.2",
+          title: "Elektriklenme Çeşitleri",
+          cards: [
+            { id: "6.2.1", title: "Sürtünme ile Elektriklenme", type: "definition",
+              content: "Birbirine sürtülen cisimler arasında elektron alışverişi olur.",
+              details: ["Elektron alan: negatif yük fazlalığı (-q)","Elektron veren: pozitif yük fazlalığı (+q)","Yalnızca yalıtkanlar arasında gerçekleşir.","Örnek: Ebonit-yün → ebonit eksi (-), yün artı (+); Cam-ipek → cam artı (+), ipek eksi (-)"],
+              tip: "Sürtünme ile elektriklenen cisimler eşit miktarda ve zıt yükle yüklenir. Önceki ve sonraki yük toplamları eşittir." },
+            { id: "6.2.2", title: "Dokunma ile Elektriklenme", type: "definition",
+              content: "Birbirine temas ettirilen iletken cisimler arasında elektron geçişidir.",
+              details: ["Sistemdeki toplam yük cisimler arasında paylaşılır.","Boyutları farklı küreler arasında yük yarıçapları oranınca paylaştırılır."],
+              formula: "q₁'/q₂' = r₁/r₂" },
+            { id: "6.2.3", title: "Etki ile Elektriklenme", type: "definition",
+              content: "Cisimler birbirine temas etmez. Yüklü cisim, yüksüz iletkene yaklaştırılınca bölgesel yüklenme oluşturur.",
+              details: ["Yüklü cisim uzaklaştırılınca bölgesel yüklenme de kalkar.","Pozitif yükler hareket etmez, negatif yükler birikir veya azalır.","Sadece iletkenler arasında gerçekleşir."],
+              tip: "Negatif yüklü küre, birbirine temas eden iki nötr küreye yaklaştırıldığında: yakın küre pozitif, uzak küre negatif yüklenir." }
+          ]
+        },
+        {
+          id: "6.3",
+          title: "Elektroskop ve Topraklama",
+          cards: [
+            { id: "6.3.1", title: "Elektroskop", type: "definition",
+              content: "Bir nesnenin yüklü olup olmadığını ve hangi cins yükle yüklü olduğunu anlamaya yarayan alettir.",
+              details: ["Hem dokunma hem etki ile elektriklenme uygulanabilir.","Nötr hâldeyken yaprakları kapalıdır.","Yüklendiğinde elektrostatik itme nedeniyle yapraklar açılır."] },
+            { id: "6.3.2", title: "Topraklama", type: "definition",
+              content: "Yüklü ve iletken cisimleri iletken telle toprağa bağladığımızda cisimler nötrlenir.",
+              details: ["Toprak sonsuz elektrona sahiptir ve iyi bir iletkendir.","(-) yüklü cisim: elektronlarını toprağa verir.","(+) yüklü cisim: topraktan elektron alır."] }
+          ]
+        }
+      ]
+    },
+    {
+      id: 7,
+      title: "Elektrik ve Manyetizma",
+      icon: "🔌",
+      topics: [
+        {
+          id: "7.1",
+          title: "Elektrik Akımı",
+          cards: [
+            { id: "7.1.1", title: "Akım Şiddeti", type: "definition",
+              content: "Birim zamanda iletkenin dik kesitinden geçen toplam yük miktarıdır.",
+              details: ["i ile gösterilir, temel ve skalerdir.","Ampermetre ile ölçülür, birimi Amper.","Plazma tüplerinde hem pozitif hem negatif iyonlar toplanarak bulunur."],
+              formula: "i = q / t",
+              tip: "Elektron akımı ve elektrik akımı daima ters yönlüdür! Elektrik akımı +'dan -'ye doğrudur." },
+            { id: "7.1.2", title: "Potansiyel Farkı (Gerilim)", type: "definition",
+              content: "Birim yükün devreyi dolaşması için gerekli enerjidir.",
+              details: ["Üretecin uçlarındaki potansiyel farka \"elektromotor kuvveti\" denir.","Birimi Volt.","Voltmetre ile ölçülür."] }
+          ]
+        },
+        {
+          id: "7.2",
+          title: "Direnç ve Ohm Kanunu",
+          cards: [
+            { id: "7.2.1", title: "Direnç", type: "definition",
+              content: "Maddelerin elektronların hareketine yani elektrik akımına karşı gösterdiği zorluktur.",
+              details: ["R sembolü ile gösterilir.","SI birimi: Ohm (Ω)"] },
+            { id: "7.2.2", title: "Reosta", type: "definition",
+              content: "Ayarlanabilir dirençlere denir. Sürgüsü çekildiği yöne göre direnç artar veya azalır." },
+            { id: "7.2.3", title: "Ohm Kanunu", type: "definition",
+              content: "Bir devrede volt, amper ve direnç arasındaki ilişkidir.",
+              formula: "V = i · R",
+              tip: "Voltun dirence bölümü amperi verir. Potansiyel fark-akım grafiğinin eğimi direnci verir." },
+            { id: "7.2.4", title: "Kısa Devre", type: "definition",
+              content: "Akımın dirençli yol yerine dirençsiz yolu tercih etmesidir. Lamba ışık vermez çünkü akım dirençli lambadan değil, dirençsiz kablodan geçer." }
+          ]
+        },
+        {
+          id: "7.3",
+          title: "Devre Elemanları",
+          cards: [
+            { id: "7.3.1", title: "Voltmetre", type: "definition",
+              content: "Elektrik devresinde iki nokta arasındaki potansiyel farkı ölçer.",
+              details: ["Devreye paralel bağlanmalıdır.","İdeal voltmetrelerin iç direnci sonsuz kabul edilir.","İçinden akım geçmez kabul edilir."] },
+            { id: "7.3.2", title: "Ampermetre", type: "definition",
+              content: "Devreden geçen akımı ölçer.",
+              details: ["Devreye seri bağlanmalıdır.","İç direnci çok küçük olduğu için ihmal edilir.","Tüm akımı kayıpsız geçirir."] },
+            { id: "7.3.3", title: "Diğer Devre Elemanları", type: "list",
+              content: "Devre elemanları:",
+              details: ["İletken Tel","Kapalı/Açık Anahtar","Ampul (lamba)","Pil (üreteç)","Direnç","Reosta","Batarya"] }
+          ]
+        },
+        {
+          id: "7.4",
+          title: "Elektrik Devreleri",
+          cards: [
+            { id: "7.4.1", title: "Eşdeğer Direnç", type: "definition",
+              content: "Devredeki tüm dirençlerin beraber oluşturduğu değerdir. Bağlantı şekline göre değişir." },
+            { id: "7.4.2", title: "Seri Bağlama", type: "definition",
+              content: "Dirençler aynı iletken tel üzerinde uç uca bağlanır.",
+              details: ["Tüm dirençlerden geçen akım eşittir.","Direnç potansiyel farklarının toplamı = üretecin potansiyel farkı.","Tüm dirençlerin toplamı = eşdeğer direnç."],
+              formula: "R_eş = R₁ + R₂ + R₃ + ..." },
+            { id: "7.4.3", title: "Paralel Bağlama", type: "definition",
+              content: "Dirençlerin birer uçları bir noktada, diğer uçları başka bir noktada olacak şekilde bağlanır.",
+              details: ["Tüm dirençlerden geçen akımların toplamı = ana kol akımı.","Her direncin potansiyel farkı = üretecin potansiyel farkı.","Çarpmaya göre terslerinin toplamı, eşdeğer direncin tersini verir."],
+              formula: "1/R_eş = 1/R₁ + 1/R₂ + ...",
+              tip: "Paralel bağlı devrelerde direnç sayısı arttıkça eşdeğer direnç azalır. Eşdeğer direnç, en küçük dirençten daha küçüktür." },
+            { id: "7.4.4", title: "Özdeş Dirençler İçin Pratik", type: "formula",
+              content: "Paralel bağlı devrede \"r\" değerine sahip \"n\" tane özdeş direnç varsa:",
+              formula: "R_eş = r/n" },
+            { id: "7.4.5", title: "Karışık Bağlamalar", type: "tip",
+              content: "Devrede hem paralel hem seri elemanlar varsa öncelikle paralel olanların eşdeğeri bulunur, sonra seri olanlarla toplanır." }
+          ]
+        },
+        {
+          id: "7.5",
+          title: "Üreteçlerin Bağlanması",
+          cards: [
+            { id: "7.5.1", title: "Üreteç Bağlama Tipleri", type: "list",
+              content: "Üreteçler de seri ve paralel bağlanabilir:",
+              details: ["Seri: Çalışma süresi değişmez, voltlar toplanır.","Paralel: Volt değişmez, çalışma süresi genellikle artar."] },
+            { id: "7.5.2", title: "Ters Bağlama", type: "tip",
+              content: "Piller seri durumdayken ters bağlanırsa potansiyel farklar birbirini yok eder. Büyük EMK'dan küçük EMK çıkarılır." },
+            { id: "7.5.3", title: "İki Pille Lamba Yanması", type: "tip",
+              content: "Aynı iki pili özdeş devrede seri bağlarsak lamba daha parlak yanar. Paralel bağlarsak daha az parlak ama daha uzun süre yanar." }
+          ]
+        },
+        {
+          id: "7.6",
+          title: "Elektrik Enerjisi ve Güç",
+          cards: [
+            { id: "7.6.1", title: "Elektrik Enerjisinin Dönüşümü", type: "definition",
+              content: "Lambanın uçlarına potansiyel fark uygulandığında akım geçer ve elektrik enerjisi ışık enerjisine dönüşür.",
+              formula: "W = i² · R · t = V · i · t" },
+            { id: "7.6.2", title: "Elektriksel Güç", type: "definition",
+              content: "Elektrikli cihazların birim zamanda harcadığı elektrik enerjisidir.",
+              details: ["P sembolü ile gösterilir.","Lambanın parlaklığı doğrudan güçle alakalıdır."],
+              formula: "P = V · i = i² · R = V²/R" },
+            { id: "7.6.3", title: "Enerji Dönüşümleri", type: "tip",
+              content: "Günlük hayatta kullanılan piller kimyasal enerjiyi, barajlardaki jeneratörler ise mekanik enerjiyi elektrik enerjisine dönüştürür." },
+            { id: "7.6.4", title: "Parlaklık Sorularında Pratik", type: "tip",
+              content: "Parlaklık sorularında lambalar seri bağlandıysa P = i²·R, paralel bağlandıysa P = V²/R formülünden gitmek hız kazandırır." }
+          ]
+        },
+        {
+          id: "7.7",
+          title: "Mıknatıs ve Manyetik Alan",
+          cards: [
+            { id: "7.7.1", title: "Mıknatıs", type: "definition",
+              content: "Demir, nikel, kobalt gibi maddeleri çekme özelliği gösteren maddelerdir.",
+              details: ["Aynı kutuplar birbirini iter, zıt kutuplar birbirini çeker.","İki mıknatısın birbirine uyguladıkları kuvvetler eşit ve zıt yönlüdür."],
+              tip: "Bir mıknatıs ister N ister S kutbundan demir çubuğa yaklaştırılırsa demir çubuğu itmez, her zaman çeker! ÖSYM bu detayı sever." },
+            { id: "7.7.2", title: "Manyetik Alan", type: "definition",
+              content: "Mıknatısın manyetik özelliklerini gösterdiği bölgedir.",
+              details: ["B sembolü ile gösterilir.","SI birimi: Tesla (T)","Vektörel büyüklüktür.","Manyetik alan çizgileri mıknatısın dışında \"N'den S'ye\" doğru gider."] },
+            { id: "7.7.3", title: "Manyetik Alan Şiddeti", type: "list",
+              content: "Mıknatısın etrafındaki manyetik alan şiddeti:",
+              details: ["Kutup şiddeti artarsa artar.","Mıknatısa olan uzaklık artarsa azalır.","Ortamın manyetik geçirgenliği artarsa artar."] },
+            { id: "7.7.4", title: "Manyetik Alan Çizgisi Özellikleri", type: "list",
+              content: "Manyetik alan çizgileri:",
+              details: ["Hiçbir zaman birbirini kesmez.","Başlangıcı ve sonu yoktur.","Mıknatısın içinde S'den N'ye gider (dış kısımdan farklı!)."] },
+            { id: "7.7.5", title: "Pusula", type: "tip",
+              content: "Pusula dünyanın manyetik alanından yararlanarak çalışır. Pusulanın S kutbu mıknatıslarda N'yi, N kutbu S'yi gösterir. Manyetik kuzey ve coğrafi kuzey aynı yer değildir!" }
+          ]
+        },
+        {
+          id: "7.8",
+          title: "Manyetik Madde Türleri",
+          cards: [
+            { id: "7.8.1", title: "1) Ferromanyetik", type: "definition",
+              content: "Mıknatıslar tarafından şiddetle çekilen maddeler.",
+              details: ["Demir, Kobalt, Nikel"] },
+            { id: "7.8.2", title: "2) Paramanyetik", type: "definition",
+              content: "Mıknatıslar tarafından çok az çekilen maddeler.",
+              details: ["Alüminyum"] },
+            { id: "7.8.3", title: "3) Diamanyetik", type: "definition",
+              content: "Mıknatıslar tarafından hiç çekilmeyen maddeler.",
+              details: ["Bakır, Gümüş"] }
+          ]
+        },
+        {
+          id: "7.9",
+          title: "Akım ve Manyetik Alan",
+          cards: [
+            { id: "7.9.1", title: "Üzerinden Akım Geçen Tel", type: "definition",
+              content: "Üzerinden akım geçen bir tel etrafında manyetik alan oluşturur.",
+              details: ["Manyetik alan iletken telin bulunduğu düzleme diktir.","Manyetik alan şiddeti uzaklıkla ters, akım şiddetiyle doğru orantılıdır."],
+              tip: "Manyetik alanın yönü sağ el kuralı ile bulunur. Başparmak akım yönünde, dört parmak alan yönünü gösterir." },
+            { id: "7.9.2", title: "Elektromıknatıslar", type: "definition",
+              content: "Manyetik maddelere sarılmış telden akım geçirildiğinde oluşan yapay mıknatıslar.",
+              details: ["Demir çubuğun etrafına yalıtılmış tel sarılıp akım geçirilince elde edilir.","Manyetik alan büyüklüğü akım şiddeti ve sarım sayısıyla doğru orantılıdır.","Kullanım: Hoparlör, Maglev treni, kapı zili, telegraf."],
+              tip: "Elektromıknatısın N kutbu sağ el kuralı ile bulunur. Sağ elin dört parmağı akım yönünü gösterirken, dik açılan başparmak N kutbunu gösterir." },
+            { id: "7.9.3", title: "Dünya'nın Manyetik Alanı", type: "definition",
+              content: "Çekirdekteki eriyik haldeki demirin hareketi sonucu güney-kuzey doğrultusunda manyetik alan oluşur.",
+              details: ["Dünya dev bir mıknatıs gibi davranır.","Bu alan Dünya'yı Güneş rüzgârlarından, uzaydan gelen yüksek enerjili parçacıklardan ve radyasyondan korur."] }
+          ]
+        }
+      ]
+    },
+    {
+      id: 8,
+      title: "Basınç ve Kaldırma Kuvveti",
+      icon: "💧",
+      topics: [
+        {
+          id: "8.1",
+          title: "Basınç",
+          cards: [
+            { id: "8.1.1", title: "Basınç Tanımı", type: "definition",
+              content: "Birim yüzeye dik olarak etki eden kuvvetin büyüklüğüdür.",
+              details: ["P sembolü ile gösterilir.","Yüzeyin tamamına etki eden dik kuvvete \"basınç kuvveti\" denir.","Birimi: Pascal (Pa)"],
+              formula: "P = F / A" }
+          ]
+        },
+        {
+          id: "8.2",
+          title: "Katıların Basıncı",
+          cards: [
+            { id: "8.2.1", title: "Katı Cisim Basıncı", type: "definition",
+              content: "Yatay düzlemde bulunan katılarda basınç kuvveti, katının ağırlığına eşittir.",
+              details: ["Temas alanı A, ağırlığı G olan cismin yaptığı basınç G/A olarak bulunur."],
+              tip: "Katıların basıncında ağırlık ve zemine temas eden yüzey alanı önemlidir. Temas alanı arttıkça basınç azalır, ağırlık arttıkça basınç artar." },
+            { id: "8.2.2", title: "Kuvvet ve Basınç İletimi", type: "tip",
+              content: "Katı cisimler kuvveti doğrultusunu ve büyüklüğünü değiştirmeden iletir. Fakat ilettikleri basınç değişebilir çünkü basınç yüzey alanına da bağlıdır." },
+            { id: "8.2.3", title: "Günlük Hayattan Örnekler", type: "list",
+              content: "Katı basıncının günlük hayattaki kullanımı:",
+              details: ["Develerin geniş ayak tabanları → kumda batmadan yürüme.","Tırlar/kamyonlardaki çok tekerlek → zemin teması fazla.","Tank ve iş makineleri paletli → yumuşak zemine batmaz.","Piezoelektrik olayı: Kristal yapıdaki cisimler basınçla orantılı potansiyel fark oluşturur."] }
+          ]
+        },
+        {
+          id: "8.3",
+          title: "Sıvıların Basıncı",
+          cards: [
+            { id: "8.3.1", title: "Durgun Sıvı Basıncı", type: "definition",
+              content: "Sıvılar bulundukları yüzeye basınç uygular. Katılar sadece durdukları yüzeye, sıvılar ise kabın temas ettiği tüm yüzeylere basınç uygular.",
+              formula: "P = h · d · g" },
+            { id: "8.3.2", title: "Sıvı Basıncı Özellikleri", type: "list",
+              content: "Sıvı basıncı:",
+              details: ["Sıvı yüzeyinden derinlere inildikçe artar.","Birimi Pascal'dır.","Yan yüzeye uygulanan basınç kuvveti, yüzeyin orta noktasındaki basınç ölçüt alınarak bulunur."] },
+            { id: "8.3.3", title: "Sıvı Basınç Kuvveti", type: "tip",
+              content: "Sıvılarda yükseklik ve özkütle sabit kalmak şartıyla yüzey alanının değişmesi basınç kuvvetini değiştirir." },
+            { id: "8.3.4", title: "Karışmayan İki Sıvı", type: "tip",
+              content: "Birbirine karışmayan 2 sıvının basınçları hesaplanırken ikisinin basınçları toplanır." }
+          ]
+        },
+        {
+          id: "8.4",
+          title: "Pascal Prensibi",
+          cards: [
+            { id: "8.4.1", title: "Pascal Prensibi", type: "definition",
+              content: "Sıvılar, üzerine etki eden basıncın büyüklüğünü değiştirmeden sıvı içinde her yönde basıncı iletir.",
+              details: ["Kullanım: Bileşik kap sistemleri, su cendereleri, hidrolik fren sistemi, tulumbalar, vinçler."] },
+            { id: "8.4.2", title: "Su Cenderesi", type: "definition",
+              content: "Pascal prensibi ile çalışan, küçük kuvvetle büyük yükleri kaldıran sistemdir.",
+              formula: "F₁/A₁ = F₂/A₂" }
+          ]
+        },
+        {
+          id: "8.5",
+          title: "Açık Hava Basıncı",
+          cards: [
+            { id: "8.5.1", title: "Açık Hava Basıncı", type: "definition",
+              content: "Atmosferdeki gazların yeryüzüne yaptığı basınçtır.",
+              details: ["Yükseklik arttıkça azalır (gaz miktarı azalır).","Sıcaklık arttıkça azalır (gazlar genleşir, özkütle azalır)."] },
+            { id: "8.5.2", title: "Barometre", type: "definition",
+              content: "Açık hava basıncını ölçen alettir.",
+              details: ["Toriçelli deneyi ile bulunmuştur.","Deniz seviyesinde 76 cm-Hg olarak ölçülmüştür."] }
+          ]
+        },
+        {
+          id: "8.6",
+          title: "Kaldırma Kuvveti",
+          cards: [
+            { id: "8.6.1", title: "Kaldırma Kuvveti", type: "definition",
+              content: "Bir akışkana batırılan cisme akışkan tarafından yukarı yönde uygulanan kuvvettir.",
+              details: ["Cismin yer değiştiren sıvının ağırlığına eşittir (Arşimet).","Havada tartılıp sıvıya daldırılan cisim, sıvının kaldırma kuvveti kadar hafifler."],
+              formula: "F_k = V · d · g" },
+            { id: "8.6.2", title: "Yer Değiştiren Sıvı Hacmi", type: "tip",
+              content: "Batan cismin hacmi daima yer değiştiren sıvının hacmine eşittir. Sıvı taşmak zorunda değil, kapta yükselse bile yer değiştirmiş sayılır." }
+          ]
+        },
+        {
+          id: "8.7",
+          title: "Sıvıdaki Cismin Halleri",
+          cards: [
+            { id: "8.7.1", title: "Yüzme", type: "definition",
+              content: "Yüzen cismin özkütlesi sıvının özkütlesinden küçüktür (d_s > d_c).",
+              details: ["Yer değiştiren sıvının ağırlığı kaldırma kuvvetine eşittir.","Dengede iken: F_k = G_c"] },
+            { id: "8.7.2", title: "Askıda Kalma", type: "definition",
+              content: "Cismin özkütlesi sıvının özkütlesine eşittir (d_s = d_c).",
+              details: ["Sıvı kaldırma kuvveti cismin ağırlığına eşittir."] },
+            { id: "8.7.3", title: "Batma", type: "definition",
+              content: "Cismin özkütlesi sıvının özkütlesinden büyüktür (d_s < d_c).",
+              details: ["Yer değiştiren sıvı kaldırma kuvvetine eşit fakat cismin ağırlığından küçüktür.","Cisim merkezine: ağırlık (G), kaldırma (F_k) ve tepki (N) etki eder."] },
+            { id: "8.7.4", title: "Yüzen Cisme Etki Eden Kuvvetler", type: "tip",
+              content: "Yüzen cismin merkezine kendi ağırlığı ve sıvı kaldırması etki eder. Üzerine baskı uygulayarak batırırsak batan hacim ve kaldırma kuvveti artar." },
+            { id: "8.7.5", title: "Görsel Yorum 1: Yaylı/İpli Cisimler", type: "tip",
+              content: "Sıvıya farklı sıvı eklendiğinde: Yoğun sıvı eklenirse kaldırma kuvveti artar, yay gerilmesi ve ip gerilmesi artar. Az yoğun sıvı eklenirse kaldırma azalır." },
+            { id: "8.7.6", title: "Görsel Yorum 2: Üst Üste Cisimler", type: "tip",
+              content: "X üstte, Y altta birbirine bağlı: X çıkmak istemez, çıkacaksa Y'den ayrılır. Y batmak istemez, batacaksa X'ten ayrılır." },
+            { id: "8.7.7", title: "Görsel Yorum 3: İpli Yüzen Cisimler", type: "tip",
+              content: "İplerde gerilme varsa cisimler yüzmek istiyor demektir. Aksi durumda gerilme oluşmaz, cisimler batar." },
+            { id: "8.7.8", title: "Görsel Yorum 4: Özkütle Karşılaştırma", type: "tip",
+              content: "Asılı duruyorsa cisim su ile aynı özkütlede. Batmışsa sudan yoğun. Yüzer halde verilirse: çok batan cisim suyun özkütlesine en yakındır." },
+            { id: "8.7.9", title: "Görsel Yorum 5: Buz Eritme", type: "tip",
+              content: "Buz batırılmışsa eridiğinde su seviyesi düşer. Çünkü buzun fazla hacmi ortadan kalkar. (Aynı kütlede buz, suya göre daha fazla hacme sahiptir.)" },
+            { id: "8.7.10", title: "Görsel Yorum 6: Balonlu Sistemler", type: "tip",
+              content: "Su eklenirse balon üzerindeki basınç artar, balon büzüşür, kaldırma kuvveti azalır → ip gerilmesi azalır. Demirdeyse su eklenince kaldırma artar → gerilme azalır." }
+          ]
+        }
+      ]
+    },
+    {
+      id: 9,
+      title: "Dalgalar",
+      icon: "🌊",
+      topics: [
+        {
+          id: "9.1",
+          title: "Genel Kavramlar",
+          cards: [
+            { id: "9.1.1", title: "Titreşim", type: "definition",
+              content: "Yayın ucundaki cismin çekilip bırakılması, gitar telinin titremesi gibi küçük ve hızlı salınımdır." },
+            { id: "9.1.2", title: "Dalga", type: "definition",
+              content: "Titreşim hareketi sonucunda ortama aktarılan enerjinin bir noktadan başka noktaya iletilirken oluşan şekil değişikliğidir.",
+              details: ["Titreşim hareketi dalgalardan oluşur ve enerji taşır.","Birbirini izleyen tepe ve çukurlardan oluşur."] },
+            { id: "9.1.3", title: "Dalga Boyu (λ)", type: "definition",
+              content: "Dalga örüntüsünün tekrarlanan birimleri arasındaki mesafedir.",
+              details: ["Yunanca lamda (λ) ile gösterilir.","Frekans ile ters orantılıdır."] },
+            { id: "9.1.4", title: "Genlik", type: "definition",
+              content: "Atma tepesinin/çukurunun dalganın denge konumuna olan uzaklığıdır.",
+              details: ["Genlik, dalganın taşıdığı enerji ile doğru orantılıdır."] },
+            { id: "9.1.5", title: "Periyot (T)", type: "definition",
+              content: "Bir tam dalganın oluşması için geçen süre veya bir noktadan ardışık iki tepe/çukurun geçmesi için geçen süredir.",
+              details: ["T ile gösterilir, birimi saniye."] },
+            { id: "9.1.6", title: "Frekans (f)", type: "definition",
+              content: "Birim zamanda oluşan dalga sayısıdır.",
+              details: ["f sembolü ile gösterilir, birimi Hertz (Hz).","Periyot ve frekans birbirinin çarpmaya göre tersidir."],
+              formula: "f = 1/T",
+              tip: "Dalgaların frekansı sadece ve sadece kaynağa bağlıdır!" },
+            { id: "9.1.7", title: "Dalganın Hızı", type: "definition",
+              content: "Dalganın birim zamandaki yer değiştirmesidir. Yayıldığı ortama bağlıdır.",
+              formula: "v = λ · f = λ / T",
+              tip: "Frekans sadece kaynağa, dalganın hızı sadece yayıldığı ortama bağlıdır. ÖSYM bu kazanımı test etmeyi sever." }
+          ]
+        },
+        {
+          id: "9.2",
+          title: "Dalga Çeşitleri",
+          cards: [
+            { id: "9.2.1", title: "1) Elektromanyetik Dalgalar", type: "definition",
+              content: "Elektrik ve manyetik yüklerin ivmeli hareketi sonucunda yayılan dalgalardır.",
+              details: ["Yayılma için maddesel ortama ihtiyaç YOKTUR.","Örnekler: Radyo dalgaları, mikrodalga, kızılötesi, görünür ışık, morötesi, X ışınları, gama ışınları.","Bu dalgaların enerjilerine göre sıralandıkları çizelgeye \"elektromanyetik dalga spektrumu\" denir."] },
+            { id: "9.2.2", title: "2) Mekanik Dalgalar", type: "definition",
+              content: "Bir kaynak tarafından maddesel ortamda oluşturulan dalgalardır. Enerji taneciklerin titreşimi ile aktarılır.",
+              details: ["Yayılması için maddesel ortama ihtiyaç VARDIR. Ancak yayılan ortam değil, enerjidir.","Katı, sıvı, gaz ortamlarında yayılır.","Örnekler: Deprem, yay, su, ses dalgaları."] },
+            { id: "9.2.3", title: "Enine Dalgalar", type: "definition",
+              content: "Ortamdaki taneciklerin titreşim doğrultusu ilerleme doğrultusuna dik olan dalgalardır.",
+              details: ["Örnek: Elektromanyetik dalgalar, yay dalgaları, su dalgaları."] },
+            { id: "9.2.4", title: "Boyuna Dalgalar", type: "definition",
+              content: "Titreşim doğrultusu ilerleme doğrultusuna paralel olan dalgalardır.",
+              details: ["Örnek: Ses dalgası."] }
+          ]
+        },
+        {
+          id: "9.3",
+          title: "Yay Dalgaları",
+          cards: [
+            { id: "9.3.1", title: "Atmaların Oluşumu", type: "definition",
+              content: "Yay doğrultusuna dik olacak şekilde eşit zaman aralıklarında yay yukarı/aşağı hareket ettirildiğinde yay üzerinde \"atmalar\" oluşur.",
+              details: ["Her bir atmanın birleşimi yay dalgasını oluşturur.","Atmanın ilerleme yönü biliniyorsa noktanın titreşim yönü bulunabilir."] }
+          ]
+        },
+        {
+          id: "9.4",
+          title: "Su Dalgaları",
+          cards: [
+            { id: "9.4.1", title: "Su Dalgalarının Yayılma Hızı", type: "definition",
+              content: "Sadece ortama bağlıdır. Su dalgalarının hızı derinlikle değişir.",
+              details: ["Derinlik artarsa hız artar.","Derinlik azalırsa hız azalır."] },
+            { id: "9.4.2", title: "Derin → Sığ Geçiş", type: "tip",
+              content: "Derin ortamdan sığ ortama geçen su dalgalarında kaynak sabit olduğu için frekans değişmez ama dalga boyu küçülür. v=λ.f bağıntısında sığ ortama geçen dalganın hızı küçülür." },
+            { id: "9.4.3", title: "Stroboskop", type: "definition",
+              content: "Dalganın frekansını ölçmek için kullanılır. Eşit aralıklı yarıkları olan, merkezi etrafında dönen araçtır." },
+            { id: "9.4.4", title: "Doğrusal Dalgalarda Kırılma", type: "definition",
+              content: "Farklı ortamları ayıran ara kesit yüzeyine dik gelen dalgalar kırılmadan diğer ortama geçer. Açı ile gelen dalgaların doğrultusu değişir.",
+              details: ["Gelme açısı (α): Dalga tepesinin ayırıcı yüzeyle yaptığı açı.","Kırılma açısı (Ɵ): Kırılan dalganın ayırıcı yüzeyle yaptığı açı.","Hızlı hareket eden derin ortam: az kırıcı.","Yavaş hareket eden sığ ortam: çok kırıcı."] },
+            { id: "9.4.5", title: "Ortam Değişiminde Dalga", type: "tip",
+              content: "Ortam değişince dalgalar hızlı ilerliyorsa ilk kısım daha çok kırılarak dalganın önünde seyreder. Derin ortamda dalga boyu artar; sığ ortamda azalır." }
+          ]
+        },
+        {
+          id: "9.5",
+          title: "Ses Dalgası",
+          cards: [
+            { id: "9.5.1", title: "Ses Hakkında", type: "definition",
+              content: "Titreşim hareketi yapan tüm maddeler ses üretebilir.",
+              details: ["Yayılması için maddesel ortama ihtiyaç vardır.","En hızlı katılarda, en yavaş gaz ortamında yayılır."] },
+            { id: "9.5.2", title: "1) Sesin Yüksekliği", type: "definition",
+              content: "Sesin inceliğini veya kalınlığını belirleyen özelliğidir. Frekansla doğru orantılıdır.",
+              details: ["Yüksek frekans: ince (tiz) ses.","Düşük frekans: kalın (pes) ses.","Telden çıkan sesin frekansı: telin maddesi, geren kuvvet, uzunluk, kesit alanına bağlı."] },
+            { id: "9.5.3", title: "İnsan Kulağının Sınırı", type: "tip",
+              content: "İnsan kulağı 20-20.000 Hz arası sesleri duyar. 20 Hz'den küçük: \"infrasonik ses\". 20.000 Hz'den büyük: \"ultrasonik ses\"." },
+            { id: "9.5.4", title: "2) Sesin Şiddeti", type: "definition",
+              content: "Enerjiyle doğru orantılıdır. Ses dalgasına dik birim yüzeyden geçen enerji miktarıdır.",
+              details: ["Birimi: Desibel (dB)","İnsan kulağı 0-120 dB arası sesleri duyar."] },
+            { id: "9.5.5", title: "3) Sesin Tınısı", type: "definition",
+              content: "Aynı notanın farklı müzik aletlerinde farklı duyulmasının sebebidir." },
+            { id: "9.5.6", title: "4) Rezonans", type: "definition",
+              content: "Bir salınım hareketine aynı frekansta periyodik etki yapıldığında hareketin genliğinin büyümesidir." },
+            { id: "9.5.7", title: "5) Yankı", type: "definition",
+              content: "Ses dalgalarının sert bir yüzeye çarpıp ses kaynağına geri dönmesidir." },
+            { id: "9.5.8", title: "Yükseklik vs Şiddet İpucu", type: "tip",
+              content: "Sesin yüksekliği frekansla, şiddeti enerji ile alakalıdır. KARIŞTIRMA!" }
+          ]
+        },
+        {
+          id: "9.6",
+          title: "Deprem Dalgası",
+          cards: [
+            { id: "9.6.1", title: "Deprem Tanımı", type: "definition",
+              content: "Deprem dalgaları yer kabuğundaki ani sarsıntıların sonucudur.",
+              details: ["Sismoloji: Depremi inceleyen bilim dalı.","Sismolog: Bu alanda çalışan bilim insanı.","Sismograf: Deprem dalgalarını kayıt eden cihaz."] },
+            { id: "9.6.2", title: "Büyüklük vs Şiddet", type: "definition",
+              content: "Deprem sırasında oluşan enerjinin ölçüsüne \"büyüklük\" denir, Richter ölçeği ile hesaplanır.",
+              details: ["Yeryüzünde yarattığı yıkıma \"şiddet\" denir, ölçü birimi yoktur.","Bu iki kavram karıştırılmamalı!"],
+              tip: "Depremin büyüklüğü açığa çıkan enerjidir, şiddeti ise yarattığı yıkımdır." }
+          ]
+        }
+      ]
+    },
+    {
+      id: 10,
+      title: "Optik",
+      icon: "💡",
+      topics: [
+        {
+          id: "10.1",
+          title: "Aydınlanma",
+          cards: [
+            { id: "10.1.1", title: "Işık ve Foton", type: "definition",
+              content: "Işık foton adı verilen çok küçük ve kütlesiz enerji paketlerinden oluşur.",
+              details: ["Boşluktaki hızı: 299.792.458 m/s","Evrende bu hıza ulaşabilen başka tanecik yoktur.","Hem dalga hem tanecik teorisi ile açıklanabilir."] },
+            { id: "10.1.2", title: "Aydınlanma", type: "definition",
+              content: "Işık kaynaklarından çıkan fotonların bir yüzeyde oluşturduğu etkidir." },
+            { id: "10.1.3", title: "Işık Şiddeti", type: "definition",
+              content: "Işık kaynağının birim zamanda yaydığı ışık enerjisidir.",
+              details: ["Birimi: Candela (cd)","Temel bir büyüklüktür."] },
+            { id: "10.1.4", title: "Işık Akısı", type: "definition",
+              content: "Bir ışık kaynağından birim zamanda her yöne yayılan toplam ışık miktarıdır.",
+              details: ["ϕ sembolü ile gösterilir.","SI birimi: Lümen","Küre gibi kapalı sistemlerde formül ile bulunur."] },
+            { id: "10.1.5", title: "Kapalı Yüzeyde Işık Akısı", type: "list",
+              content: "Kapalı yüzeyde ışık akısının özellikleri:",
+              details: ["Yüzeyin boyutuna BAĞLI DEĞİLDİR.","Kaynağın ışık şiddetiyle DOĞRU ORANTILIDIR.","Küre kesilip altı açık bırakılırsa akı değişebilir, ama altı kapatılırsa değişmez."] },
+            { id: "10.1.6", title: "Düz Yüzeyde Işık Akısı (Noktasal Kaynak)", type: "tip",
+              content: "Işık akısı kaynağın şiddeti ile doğru orantılıdır. Yüzey alanı büyütülürse akı artar. Kaynaktan uzaklaştıkça foton sayısı azalır, akı azalır." },
+            { id: "10.1.7", title: "Düz Yüzeyde Işık Akısı (Paralel Işın)", type: "tip",
+              content: "Işınlar paralelse kaynak uzaklığı önemli değildir. Paralel ışınlar dik geliyorsa akı maksimumdur. Açı arttıkça akı azalır, 90°'de sıfırlanır." },
+            { id: "10.1.8", title: "Aydınlanma Şiddeti", type: "definition",
+              content: "Birim yüzeye düşen ışık akısıdır.",
+              details: ["E sembolü ile gösterilir.","SI birimi: Lux","Kaynağın şiddetiyle doğru, uzaklığın karesiyle ters orantılıdır."],
+              formula: "E = ϕ / A" },
+            { id: "10.1.9", title: "Kavram Karışıklığı İpucu", type: "tip",
+              content: "Aydınlanma şiddetiyle ışık şiddetini karıştırma! Aydınlanma şiddeti birim yüzeye düşeni, ışık şiddeti ise kaynaktan birim zamanda çıkanı ifade eder." }
+          ]
+        },
+        {
+          id: "10.2",
+          title: "Yansıma ve Düzlem Aynalar",
+          cards: [
+            { id: "10.2.1", title: "Görüş Alanı - Yöntem 1", type: "definition",
+              content: "Gözden aynanın uçlarına ışınlar gönderilir ve yansıma kanunlarına göre yansıtılır. Yansıyan ışınların arasında kalan alan görüş alanıdır." },
+            { id: "10.2.2", title: "Görüş Alanı - Yöntem 2", type: "definition",
+              content: "Gözün aynaya göre simetriği alınır, simetriği alınan gözden aynanın uçlarına ışınlar gönderilir. İki ışın arasındaki aynanın önünde kalan alan görüş alanıdır." },
+            { id: "10.2.3", title: "Düzlem Ayna İpucu", type: "tip",
+              content: "Aynanın direkt karşısında olmayan cisimler gözlemcinin bakış açısına göre görülebilir. Gözlemcinin kendi hizasındaki görüş alanı aynaya olan uzaklığa bağlı değildir." }
+          ]
+        },
+        {
+          id: "10.3",
+          title: "Küresel Aynalar - Genel",
+          cards: [
+            { id: "10.3.1", title: "Küresel Ayna Tanımı", type: "definition",
+              content: "Yansıtıcı yüzeyi bir küre parçasının iç veya dış yüzeyi olarak belirlenen aynalardır.",
+              details: ["İç yüzü yansıtıcı: Çukur (iç bükey) ayna","Dış yüzü yansıtıcı: Tümsek (dış bükey) ayna"] },
+            { id: "10.3.2", title: "Önemli Noktalar", type: "list",
+              content: "Küresel ayna kavramları:",
+              details: ["Asal eksen: Aynanın orta noktasından ve merkezinden geçen eksen.","Tepe noktası: Asal eksenin ayna ile çakıştığı nokta.","Odak noktası: Tepe ile merkez noktasının tam ortası.","Odak uzaklığı: Odak noktasının aynaya/merkeze uzaklığı."],
+              formula: "r = 2f" }
+          ]
+        },
+        {
+          id: "10.4",
+          title: "Çukur Ayna",
+          cards: [
+            { id: "10.4.1", title: "Çukur Ayna Tanımı", type: "definition",
+              content: "Üzerine düşen ışığı yansıttıktan sonra belli bir noktada toplayan aynadır." },
+            { id: "10.4.2", title: "Çukur Aynada Özel Işınlar", type: "list",
+              content: "Çukur aynada özel ışınlar:",
+              details: ["Asal eksene paralel gelen → odaktan geçer.","Odaktan gelen → asal eksene paralel gider.","Merkezden gelen → kendi üzerinden geri yansır.","Tepe noktasına gelen → asal eksene eşit açı yaparak yansır."] },
+            { id: "10.4.3", title: "Yansıma Yolları", type: "list",
+              content: "Çukur aynada yansıma yolları:",
+              details: ["1. Yol: Gelen ve yansıyan ışının ortasına merkezden ışın gönder, açıortay görevi görür.","2. Yol: Gelen ışına paralel ve merkezden geçen doğru ile odaktan dikme çiz, kesişen yer yardımcı odaktır."],
+              tip: "En basit yöntem 2. yoldur." },
+            { id: "10.4.4", title: "Çukur Aynada Görüntü Oluşumu", type: "list",
+              content: "Çukur aynada görüntü konumları:",
+              details: ["Cisim merkez dışında: Görüntü odak-merkez arası, ters, küçük.","Cisim merkezde: Görüntü merkezde, ters, eşit.","Cisim odak-merkez arası: Görüntü merkez dışında, ters, büyük.","Cisim odakta: Görüntü sonsuzdadır.","Cisim odak-tepe arası: Görüntü ayna arkasında, düz, büyük, sanal."],
+              tip: "Cisim sonsuzdan odağa yaklaşırken görüntü ters ve aynadan uzaklaşarak büyür." }
+          ]
+        },
+        {
+          id: "10.5",
+          title: "Tümsek Ayna",
+          cards: [
+            { id: "10.5.1", title: "Tümsek Ayna Tanımı", type: "definition",
+              content: "Kendisine gelen ışınların uzantılarını arkasındaki bir noktada toplayan aynadır." },
+            { id: "10.5.2", title: "Tümsek Aynada Özel Işınlar", type: "list",
+              content: "Tümsek aynada özel ışınlar:",
+              details: ["Asal eksene paralel gelen → uzantısı odaktan geçecek şekilde yansır.","Uzantısı odaktan geçecek şekilde gelen → asal eksene paralel yansır.","Uzantısı merkezden geçecek şekilde gelen → kendi üzerinden geri yansır.","Tepe noktasına gelen → asal eksenle eşit açı yaparak yansır."] },
+            { id: "10.5.3", title: "Tümsek Aynada Görüntü Oluşumu", type: "list",
+              content: "Tümsek aynada görüntü konumları:",
+              details: ["Cisim sonsuzda: Görüntü odakta, noktasal, sanal.","Cisim ayna-sonsuz arası: Görüntü odak-ayna arası, düz, küçük, sanal."],
+              tip: "Cisim sonsuzdan aynaya yaklaştıkça görüntü de aynaya yaklaşır ve büyür. Görüntüler her zaman sanal ve düzdür." }
+          ]
+        },
+        {
+          id: "10.6",
+          title: "Aynaların Günlük Hayatta Kullanımı",
+          cards: [
+            { id: "10.6.1", title: "Tümsek Ayna Kullanım Alanları", type: "list",
+              content: "Tümsek ayna kullanımı:",
+              details: ["Lunaparklarda kahkaha aynaları","Sokaklardaki güvenlik aynaları"] },
+            { id: "10.6.2", title: "Çukur Ayna Kullanım Alanları", type: "list",
+              content: "Çukur ayna kullanımı:",
+              details: ["Araba ve el feneri ışığını düz yaymak","Diş hekimliği aynaları","Makyaj aynaları (görüntüyü büyütmek)"] }
+          ]
+        },
+        {
+          id: "10.7",
+          title: "Kırılma",
+          cards: [
+            { id: "10.7.1", title: "Kırılma Tanımı", type: "definition",
+              content: "Bir saydam ortamdan diğer saydam ortama geçen ışık ışını yön değiştirir. Sebebi farklı ortamlarda farklı hızla hareket etmesidir.",
+              details: ["Hız değiştiği için dalga boyu değişir.","Frekans DEĞİŞMEZ."] },
+            { id: "10.7.2", title: "Kırılma Açıları", type: "definition",
+              content: "Gelen ışının yüzey normaliyle yaptığı açı: gelme açısı (i). Kırılan ışının normalle yaptığı açı: kırılma açısı (r)." },
+            { id: "10.7.3", title: "Mutlak Kırılma İndisi", type: "definition",
+              content: "Işığın boşluktaki hızının (c) saydam ortamdaki ortalama hızına (v) oranıdır.",
+              formula: "n = c / v" },
+            { id: "10.7.4", title: "Kırılma Kanunları", type: "list",
+              content: "Kırılma kanunları:",
+              details: ["Gelen ışın, kırılan ışın ve yüzey normali aynı düzlemdedir.","Gelme ve kırılma açısının sinüs oranı sabittir (Snell yasası).","Bu orana ikinci ortamın birinci ortama \"bağıl kırıcılık indisi\" denir."],
+              formula: "n₂/n₁ = sin(i)/sin(r)" },
+            { id: "10.7.5", title: "Az Yoğun → Çok Yoğun Geçiş", type: "definition",
+              content: "Az kırıcı ortamdan çok kırıcı ortama geçerken (n₁ < n₂) normale yaklaşarak kırılır. v₁ > v₂ olur." },
+            { id: "10.7.6", title: "Çok Yoğun → Az Yoğun Geçiş", type: "definition",
+              content: "Çok kırıcı ortamdan az kırıcı ortama geçerken (n₁ > n₂) normalden uzaklaşarak kırılır. v₁ < v₂ olur." },
+            { id: "10.7.7", title: "Yoğunluk - Hız İlişkisi", type: "tip",
+              content: "Temel olay: Yoğunluk arttıkça ışının hızı azalır, yoğunluk azaldıkça hız artar. Bu yüzden az yoğundan çok yoğuna geçerken hız farkı oluşur ve kırılma gerçekleşir." }
+          ]
+        },
+        {
+          id: "10.8",
+          title: "Sınır Açısı ve Tam Yansıma",
+          cards: [
+            { id: "10.8.1", title: "Sınır Açısı", type: "definition",
+              content: "Kırılma açısını 90 dereceye tamamlayan açıdır.",
+              details: ["Ortamlar arası kırılma indisleri farkı büyüdükçe sınır açısı küçülür.","Az yoğundan çok yoğuna her durumda geçer.","Çok yoğundan az yoğuna her durumda GEÇEMEZ."] },
+            { id: "10.8.2", title: "Çok Yoğun → Az Yoğun Özel Durumlar", type: "list",
+              content: "Sınır açısına göre özel durumlar:",
+              details: ["Sınır açısından küçük: Geçer.","Sınır açısıyla gelir: Yüzeye paralel gider.","Sınır açısından büyük: Tam yansıma yapar."] },
+            { id: "10.8.3", title: "Serap Olayı", type: "definition",
+              content: "Işığın farklı sıcaklıktaki hava katmanlarında tam yansıma yapması ve su varmış gibi göstermesi olayıdır." },
+            { id: "10.8.4", title: "Tam Yansıma Kullanımı", type: "list",
+              content: "Tam yansımanın kullanım alanları:",
+              details: ["İletişim ve internet teknolojisi","Fiber optik kablolar"] }
+          ]
+        },
+        {
+          id: "10.9",
+          title: "Tam Yansımalı Prizmalar",
+          cards: [
+            { id: "10.9.1", title: "Tam Yansımalı Prizma", type: "definition",
+              content: "İkizkenar dik üçgen biçimindeki camdan yapılmış prizmalardır.",
+              details: ["Camdan havaya geçişte sınır açısı 42°'dir.","42°'den büyük açıyla gelen ışınlar tam yansıma yapar.","45°'lik açıyla gelen ışın prizmadan dışarı çıkamayıp tam yansır."] }
+          ]
+        },
+        {
+          id: "10.10",
+          title: "Renk ve Filtreler",
+          cards: [
+            { id: "10.10.1", title: "Cisimlerin Renkli Görülmesi", type: "definition",
+              content: "Bir cisim hangi rengi yansıtıyorsa o renkte görünür. Cisimler yansıtamadıkları ışıkları soğurur.",
+              details: ["Cisimler kendi renklerini güçlü, komşu renkleri zayıf yansıtır.","Göz güçlü yansıyan ışığı algılar, zayıfı algılayamaz.","Beyaz cisimler tüm renkleri yansıtır.","Siyah cisimler tüm renkleri soğurur."] },
+            { id: "10.10.2", title: "Sarı Işık İpucu", type: "tip",
+              content: "İki farklı sarı ışık vardır: Güneş ışığındaki doğal sarı ve kırmızı+yeşil karışımı sarı. \"Sarı ışık\" daima karışım sarıyı, \"güneş/beyaz ışık içindeki sarı\" saf sarı kasteder." },
+            { id: "10.10.3", title: "Boya Renkleri", type: "definition",
+              content: "Işıktaki ana renkler boyanın ara renkleri, ışıktaki ara renkler boyanın ana renkleridir.",
+              details: ["Boyada ana renklerin karışımı siyah verir.","Mavi ve sarı boyandığında beyaz elde edilir (sarı zaten kırmızı+yeşilden oluşur)."] },
+            { id: "10.10.4", title: "Işık Filtreleri", type: "definition",
+              content: "Işığı süzen renkli saydam levhalardır.",
+              details: ["Ana renkli filtreler: Kendi rengindeki ışınları güçlü geçirir.","Ara renkli filtreler: Kendini oluşturan renkleri ve komşularını geçirir.","Üzerine düşen ışığı hiç geçirmeyen filtre siyah görünür."] }
+          ]
+        },
+        {
+          id: "10.11",
+          title: "Mercekler",
+          cards: [
+            { id: "10.11.1", title: "Mercek Tanımı", type: "definition",
+              content: "Işığın kırılması sonucunda ışınları bir noktada toplayabilen saydam ortamlardır.",
+              details: ["Yüzey şekillerine göre ince ve kalın kenarlı olarak ikiye ayrılır."],
+              tip: "İnce kenarlı mercek çukur ayna gibi, kalın kenarlı mercek tümsek ayna gibi davranır. Mercek ışığı geçirir, ayna geçirmez." },
+            { id: "10.11.2", title: "Odak Uzaklığını Etkileyen Faktörler", type: "list",
+              content: "Bir merceğin odak uzaklığı şunlara bağlıdır:",
+              details: ["Merceğin yapıldığı maddeye","Merceğin bulunduğu ortamın yoğunluğuna","Merceğin eğrilik yarıçapına","Işığın rengine"] },
+            { id: "10.11.3", title: "İnce Kenarlı (Yakınsak) Mercek", type: "definition",
+              content: "Işığı kırarak merkeze toplayan merceklerdir." },
+            { id: "10.11.4", title: "İnce Kenarlı Mercekte Özel Işınlar", type: "list",
+              content: "İnce kenarlı mercekte özel ışınlar:",
+              details: ["Asal eksene paralel gelen → odaktan geçerek kırılır.","Odaktan gelen → asal eksene paralel kırılır.","2F'den gelen → diğer taraftaki 2F'den geçecek şekilde kırılır.","Merkeze gelen → kırılmadan geçer."] },
+            { id: "10.11.5", title: "Kalın Kenarlı (Iraksak) Mercek", type: "definition",
+              content: "Işığı kırarak çevreye dağıtan merceklerdir." },
+            { id: "10.11.6", title: "Kalın Kenarlı Mercekte Özel Işınlar", type: "list",
+              content: "Kalın kenarlı mercekte özel ışınlar:",
+              details: ["Asal eksene paralel gelen → uzantısı odaktan geçecek şekilde kırılır.","Uzantısı odaktan geçecek şekilde gelen → asal eksene paralel kırılır.","Uzantısı 2F'den geçecek şekilde gelen → uzantısı 2F'den geçecek şekilde kırılır.","Merkeze gelen → doğrultu değiştirmeden geçer."] },
+            { id: "10.11.7", title: "Sanal Görüntü İpucu", type: "tip",
+              content: "Merceklerde oluşan cisimlerin sanal görüntüleri kendisiyle aynı tarafta kalır. Bu yönüyle aynalardan farklılık gösterir. \"Zahiri\" kelimesi sanal anlamına gelir, ÖSYM bu adıyla sorabilir." }
+          ]
+        },
+        {
+          id: "10.12",
+          title: "Merceklerin Kullanım Alanları",
+          cards: [
+            { id: "10.12.1", title: "Gözlük ve Lens", type: "list",
+              content: "Görme bozukluklarında kullanım:",
+              details: ["Miyopluk: Kalın kenarlı (ıraksak) mercek","Hipermetropluk: İnce kenarlı (yakınsak) mercek"] },
+            { id: "10.12.2", title: "Diğer Mercek Kullanımları", type: "list",
+              content: "Diğer kullanım alanları (hepsi ince kenarlı):",
+              details: ["Büyüteç","Kamera","Mikroskop","Dürbün"] }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+// ============== STATE & STORAGE ==============
+const STORAGE_KEY = 'tyt_fizik_state_v1';
+
+function loadState() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      return {
+        pinned: new Set(parsed.pinned || []),
+        known: new Set(parsed.known || []),
+        currentUnit: parsed.currentUnit || 1
+      };
+    }
+  } catch (e) { console.warn('State load failed', e); }
+  return { pinned: new Set(), known: new Set(), currentUnit: 1 };
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      pinned: [...state.pinned],
+      known: [...state.known],
+      currentUnit: state.currentUnit
+    }));
+  } catch (e) { console.warn('State save failed', e); }
+}
+
+const state = loadState();
+let searchQuery = '';
+
+// ============== HELPERS ==============
+function escapeHTML(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function highlightSearch(text) {
+  if (!searchQuery) return escapeHTML(text);
+  const escaped = escapeHTML(text);
+  const re = new RegExp('(' + searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return escaped.replace(re, '<mark>$1</mark>');
+}
+
+function getAllCardsInUnit(unit) {
+  const cards = [];
+  unit.topics.forEach(topic => {
+    topic.cards.forEach(card => {
+      cards.push({ ...card, _topic: topic });
+    });
+  });
+  return cards;
+}
+
+function cardMatchesSearch(card) {
+  if (!searchQuery) return true;
+  const q = searchQuery.toLowerCase();
+  const text = [
+    card.title || '',
+    card.content || '',
+    card.formula || '',
+    card.tip || '',
+    ...(card.details || [])
+  ].join(' ').toLowerCase();
+  return text.includes(q);
+}
+
+// ============== RENDER ==============
+function renderSidebar() {
+  const nav = document.getElementById('unitNav');
+  nav.innerHTML = FIZIK_DATA.units.map(unit => {
+    const isActive = unit.id === state.currentUnit;
+    const totalCards = getAllCardsInUnit(unit).length;
+    return `
+      <button class="unit-btn ${isActive ? 'active' : ''}" data-unit="${unit.id}">
+        <span class="unit-icon">${unit.icon}</span>
+        <span style="flex:1">${unit.title}</span>
+        <span class="unit-num">${unit.id}</span>
+      </button>
+    `;
+  }).join('');
+
+  nav.querySelectorAll('.unit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.currentUnit = parseInt(btn.dataset.unit);
+      saveState();
+      renderSidebar();
+      renderMain();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+}
+
+function renderCard(card, topic) {
+  const isPinned = state.pinned.has(card.id);
+  const isKnown = state.known.has(card.id);
+  const cardClass = isPinned ? 'pinned' : (isKnown ? 'known' : '');
+
+  const detailsHTML = (card.details && card.details.length)
+    ? `<ul class="card-details">${card.details.map(d => `<li>${highlightSearch(d)}</li>`).join('')}</ul>`
+    : '';
+
+  const formulaHTML = card.formula
+    ? `<div class="card-formula">${escapeHTML(card.formula)}</div>`
+    : '';
+
+  const tipHTML = card.tip
+    ? `<div class="card-tip">${highlightSearch(card.tip)}</div>`
+    : '';
+
+  const typeLabels = {
+    definition: 'TANIM',
+    list: 'LİSTE',
+    tip: 'İPUCU',
+    formula: 'FORMÜL',
+    example: 'ÖRNEK'
+  };
+
+  return `
+    <div class="card ${cardClass}" data-card-id="${card.id}">
+      <div class="card-header">
+        <span class="card-type ${card.type}">${typeLabels[card.type] || card.type}</span>
+        <div class="card-actions">
+          <button class="action-btn pin ${isPinned ? 'active' : ''}" data-action="pin" data-id="${card.id}" title="Üstte tut">📌</button>
+          <button class="action-btn know ${isKnown ? 'active' : ''}" data-action="know" data-id="${card.id}" title="Biliyorum">✓</button>
+        </div>
+      </div>
+      <div class="card-title">${highlightSearch(card.title)}</div>
+      ${card.content ? `<div class="card-content">${highlightSearch(card.content)}</div>` : ''}
+      ${detailsHTML}
+      ${formulaHTML}
+      ${tipHTML}
+      <div class="card-id">${card.id}</div>
+    </div>
+  `;
+}
+
+function renderTopic(topic, cards) {
+  if (cards.length === 0) return '';
+  const tipHTML = topic.tip ? `<div class="topic-tip">${escapeHTML(topic.tip)}</div>` : '';
+  return `
+    <div class="topic" data-topic-id="${topic.id}">
+      <div class="topic-title">${highlightSearch(topic.title)}</div>
+      ${tipHTML}
+      <div class="cards-grid">
+        ${cards.map(c => renderCard(c, topic)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderMain() {
+  const main = document.getElementById('mainContent');
+  const unit = FIZIK_DATA.units.find(u => u.id === state.currentUnit);
+  if (!unit) { main.innerHTML = '<div class="empty-state">Ünite bulunamadı.</div>'; return; }
+
+  // Karts ayır: pinned, normal, known
+  // Her topic için, search filter uyguladıktan sonra üç gruba böl
+  const sections = {
+    pinned: [],   // {topic, cards[]}
+    normal: [],
+    known: []
+  };
+
+  unit.topics.forEach(topic => {
+    const filteredCards = topic.cards.filter(cardMatchesSearch);
+    if (filteredCards.length === 0) return;
+
+    const pinnedCards = filteredCards.filter(c => state.pinned.has(c.id));
+    const knownCards = filteredCards.filter(c => state.known.has(c.id) && !state.pinned.has(c.id));
+    const normalCards = filteredCards.filter(c => !state.pinned.has(c.id) && !state.known.has(c.id));
+
+    if (pinnedCards.length) sections.pinned.push({ topic, cards: pinnedCards });
+    if (normalCards.length) sections.normal.push({ topic, cards: normalCards });
+    if (knownCards.length) sections.known.push({ topic, cards: knownCards });
+  });
+
+  const totalFiltered = sections.pinned.reduce((a,s)=>a+s.cards.length,0) +
+                        sections.normal.reduce((a,s)=>a+s.cards.length,0) +
+                        sections.known.reduce((a,s)=>a+s.cards.length,0);
+
+  let html = `
+    <div class="unit-header">
+      <div class="unit-title">
+        <span>${unit.icon}</span>
+        <span>${unit.id}. ${unit.title}</span>
+      </div>
+      <div class="unit-subtitle">
+        ${searchQuery ? `"${escapeHTML(searchQuery)}" araması: ${totalFiltered} kart` : `${getAllCardsInUnit(unit).length} kart, ${unit.topics.length} konu`}
+      </div>
+    </div>
+  `;
+
+  if (totalFiltered === 0) {
+    html += `<div class="empty-state"><span class="empty-state-icon">🔍</span>${searchQuery ? 'Aramaya uygun kart bulunamadı.' : 'Bu ünitede kart yok.'}</div>`;
+    main.innerHTML = html;
+    return;
+  }
+
+  // PINNED SECTION
+  if (sections.pinned.length) {
+    const count = sections.pinned.reduce((a,s)=>a+s.cards.length,0);
+    html += `
+      <section class="section" data-section="pinned">
+        <div class="section-header pinned">
+          <span class="section-icon">📌</span>
+          <span class="section-title">Üstte Tutulanlar</span>
+          <span class="section-count">${count}</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="section-content">
+          ${sections.pinned.map(({topic, cards}) => renderTopic(topic, cards)).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  // NORMAL SECTION
+  if (sections.normal.length) {
+    const count = sections.normal.reduce((a,s)=>a+s.cards.length,0);
+    html += `
+      <section class="section" data-section="normal">
+        <div class="section-header">
+          <span class="section-icon">📖</span>
+          <span class="section-title">Konu Anlatımı</span>
+          <span class="section-count">${count}</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="section-content">
+          ${sections.normal.map(({topic, cards}) => renderTopic(topic, cards)).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  // KNOWN SECTION
+  if (sections.known.length) {
+    const count = sections.known.reduce((a,s)=>a+s.cards.length,0);
+    html += `
+      <section class="section collapsed" data-section="known">
+        <div class="section-header known">
+          <span class="section-icon">✅</span>
+          <span class="section-title">Bildiklerim</span>
+          <span class="section-count">${count}</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="section-content">
+          ${sections.known.map(({topic, cards}) => renderTopic(topic, cards)).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  main.innerHTML = html;
+  attachCardListeners();
+  attachSectionListeners();
+}
+
+function attachCardListeners() {
+  document.querySelectorAll('.action-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+
+      if (action === 'pin') {
+        if (state.pinned.has(id)) {
+          state.pinned.delete(id);
+        } else {
+          state.pinned.add(id);
+          state.known.delete(id); // pin'lenince known'dan kaldır
+        }
+      } else if (action === 'know') {
+        if (state.known.has(id)) {
+          state.known.delete(id);
+        } else {
+          state.known.add(id);
+          state.pinned.delete(id); // known'a alınınca pin'den kaldır
+        }
+      }
+      saveState();
+      renderMain();
+      updateStats();
+    });
+  });
+}
+
+function attachSectionListeners() {
+  document.querySelectorAll('.section-header').forEach(header => {
+    header.addEventListener('click', () => {
+      header.parentElement.classList.toggle('collapsed');
+    });
+  });
+}
+
+function updateStats() {
+  document.getElementById('statPinned').textContent = state.pinned.size;
+  document.getElementById('statKnown').textContent = state.known.size;
+  let totalCards = 0;
+  FIZIK_DATA.units.forEach(u => totalCards += getAllCardsInUnit(u).length);
+  document.getElementById('statTotal').textContent = totalCards;
+}
+
+function resetProgress() {
+  if (!confirm('Tüm "üstte tut" ve "biliyorum" işaretlemeleri silinecek. Devam edelim mi?')) return;
+  state.pinned.clear();
+  state.known.clear();
+  saveState();
+  renderMain();
+  updateStats();
+}
+
+// ============== SEARCH ==============
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    searchQuery = e.target.value.trim();
+    renderMain();
+  }, 200);
+});
+
+// ============== INIT ==============
+renderSidebar();
+renderMain();
+updateStats();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '/' || (e.ctrlKey && e.key === 'k')) {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+});
+</script>
+
+</body>
+</html>
