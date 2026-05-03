@@ -1,0 +1,50 @@
+<%- include('partials/head', { title: "Ders Notları - Şeyda" }) %>
+
+<div class="container">
+  <header class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>📚 Ders Notları</h1>
+        <p class="subtitle">İnteraktif konu anlatımları. İğnelediğin ve "biliyorum" dediğin işaretlemeler kalıcı olarak kaydedilir.</p>
+      </div>
+      <div class="nav-buttons">
+        <a href="/admin" class="btn btn-secondary">← Yönetici Paneli</a>
+      </div>
+    </div>
+  </header>
+
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <div class="section-card">
+    <h2>Dersler</h2>
+    <% if (courses.length === 0) { %>
+      <p class="empty-msg">Henüz ders eklenmedi.</p>
+    <% } else { %>
+      <div class="categories-list">
+        <% for (const c of courses) { %>
+          <a href="/admin/dersler/<%= c.slug %>" class="category-item" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:12px;">
+            <span style="font-size:24px"><%= c.icon || '📖' %></span>
+            <span class="category-name" style="flex:1"><strong><%= c.name %></strong></span>
+            <span class="btn btn-tiny btn-primary">Aç →</span>
+          </a>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="section-card">
+    <h2>Yeni Ders Nasıl Eklenir?</h2>
+    <p class="section-desc">
+      İnteraktif HTML dosyasını <code>views/dersler/</code> klasörüne koy, sonra <code>db.js</code> içindeki
+      <code>COURSES</code> listesine yeni ders için bir satır ekle.
+    </p>
+    <pre style="background:#f6f8fa; padding:12px; border-radius:6px; overflow:auto; font-size:13px;">{ slug: 'tyt-kimya', name: 'TYT Kimya', file: 'tyt-kimya', icon: '🧪' }</pre>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

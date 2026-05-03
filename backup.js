@@ -49,6 +49,7 @@ function createBackup(manual = false) {
       exam_results: data.exam_results.length,
       exam_topics: (data.exam_topics || []).length,
       exam_notes: (data.exam_notes || []).length,
+      course_state: (data.course_state || []).length,
       meta: data.meta.length
     },
     data

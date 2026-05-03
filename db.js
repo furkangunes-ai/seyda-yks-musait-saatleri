@@ -117,6 +117,21 @@ db.exec(`
   )
 `);
 
+// İnteraktif ders sayfalarının state'i (iğneleme/biliyorum vb.)
+// course_slug = ders kimliği (örn 'tyt-fizik').
+// storage_key = sayfanın localStorage anahtarı (örn 'tyt_fizik_state_v1').
+// value = JSON string (sayfanın yazdığı her şey).
+// (slug, key) çifti benzersiz; aynı sayfa birden fazla key kullanabilir.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS course_state (
+    course_slug TEXT NOT NULL,
+    storage_key TEXT NOT NULL,
+    value TEXT,
+    updated_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (course_slug, storage_key)
+  )
+`);
+
 const DAYS = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
 const DAYS_DISPLAY = {
@@ -680,6 +695,51 @@ function getAllNotesGrouped() {
 }
 
 // ==========================================
+// İNTERAKTİF DERS SAYFALARI
+// ==========================================
+
+// Yeni ders eklemek için: HTML dosyasını views/dersler/<file>.html olarak koy,
+// sonra buraya bir satır ekle. slug benzersiz olmalı, file uzantısız olmalı.
+const COURSES = [
+  { slug: 'tyt-fizik', name: 'TYT Fizik', file: 'tyt-fizik', icon: '⚛️' }
+];
+
+function getAllCourses() {
+  return COURSES;
+}
+
+function getCourseBySlug(slug) {
+  return COURSES.find(c => c.slug === slug) || null;
+}
+
+// Bir dersin tüm state'ini key→value map olarak döner.
+function getCourseState(slug) {
+  const rows = db.prepare(
+    'SELECT storage_key, value FROM course_state WHERE course_slug = ?'
+  ).all(slug);
+  const out = {};
+  for (const r of rows) out[r.storage_key] = r.value;
+  return out;
+}
+
+// Tek bir storage_key'i kaydet (UPSERT).
+function setCourseStateKey(slug, key, value) {
+  db.prepare(`
+    INSERT INTO course_state (course_slug, storage_key, value, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(course_slug, storage_key)
+    DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+  `).run(slug, key, value);
+  return true;
+}
+
+function deleteCourseStateKey(slug, key) {
+  return db.prepare(
+    'DELETE FROM course_state WHERE course_slug = ? AND storage_key = ?'
+  ).run(slug, key).changes > 0;
+}
+
+// ==========================================
 // YEDEKLEME İÇİN VERİ DIŞA AKTARMA
 // ==========================================
 
@@ -691,7 +751,8 @@ function exportAllData() {
     meta: db.prepare('SELECT * FROM meta').all(),
     exam_results: db.prepare('SELECT * FROM exam_results').all(),
     exam_topics: db.prepare('SELECT * FROM exam_topics').all(),
-    exam_notes: db.prepare('SELECT * FROM exam_notes').all()
+    exam_notes: db.prepare('SELECT * FROM exam_notes').all(),
+    course_state: db.prepare('SELECT * FROM course_state').all()
   };
 }
 
@@ -734,7 +795,13 @@ module.exports = {
   deleteTopic,
   getAllNotesGrouped,
   exportAllData,
+  getAllCourses,
+  getCourseBySlug,
+  getCourseState,
+  setCourseStateKey,
+  deleteCourseStateKey,
   EXAM_STRUCTURE,
+  COURSES,
   DAYS,
   DAYS_DISPLAY,
   HOURS
